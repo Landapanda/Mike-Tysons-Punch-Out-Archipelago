@@ -30,5 +30,6 @@ I am very new to AP as a whole and especially so with developing one, as well as
 ## Resources:
 Huge thanks to these resources for me to even begin working on this project!
 - [APQuest](https://github.com/ArchipelagoMW/Archipelago/tree/main/worlds/apquest)
+- [Bizhawk Client](https://github.com/ArchipelagoMW/Archipelago/tree/main/worlds/_bizhawk)
 - [Data Crystal RAM Map](https://datacrystal.tcrf.net/wiki/Mike_Tyson's_Punch-Out!!/RAM_map)
 - [MTPO Disassembly](https://github.com/nmikstas/mike-tysons-punch-out-disassembly/blob/master/source_files/Mike_Tysons_Punchout_Defines.asm)
