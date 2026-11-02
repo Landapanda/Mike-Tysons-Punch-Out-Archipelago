@@ -26,9 +26,11 @@ ITEM_NAME_TO_ID = {
     "Progressive Round": 16,
     "Heal in Between Rounds": 17,
     "Busy Signal Code": 18,
-    "Credits Code": 19,
-    "Filler": 20,
-    "Math Trap": 21
+    "Busy Signal Code 2": 19,
+    "Busy Signal Code 3": 20,
+    "Credits Code": 21,
+    "Star": 22,
+    "End Round Trap": 23
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -50,7 +52,10 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Progressive Round": ItemClassification.progression,
     "Heal in Between Round": ItemClassification.useful,
     "Busy Signal Code": ItemClassification.filler,
+    "Busy Signal Code 2": ItemClassification.filler,
+    "Busy Signal Code 3": ItemClassification.filler,
     "Credits Code": ItemClassification.filler,
+    "Star": ItemClassification.filler,
     "Math Trap": ItemClassification.trap,
 }
 
@@ -68,7 +73,7 @@ def get_random_filler_item_name(world: MTPOWorld) -> str:
     # DO NOT use a bare random object from Python's built-in random module.
     if world.random.randint(0, 99) < world.options.trap_chance:
         return "Math Trap"
-    return "Filler"
+    return "Star"
 
 
 def create_item_with_correct_classification(world: MTPOWorld, name: str) -> MTPOItem:
@@ -100,8 +105,8 @@ def create_all_items(world: MTPOWorld) -> None:
         world.create_item("Progressive Round"),
         world.create_item("Progressive Round"),
         world.create_item("Busy Signal Code"),
-        world.create_item("Busy Signal Code"),
-        world.create_item("Busy Signal Code"),
+        world.create_item("Busy Signal Code 2"),
+        world.create_item("Busy Signal Code 3"),
         world.create_item("Credits Code")
     ]
 

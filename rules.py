@@ -45,8 +45,11 @@ def set_all_entrance_rules(world: MTPOWorld) -> None:
     have_sandman: Rule = Has("Mr. Sandman")
     have_macho: Rule = Has("Super Macho Man")
     have_tyson: Rule = Has("Mike Tyson")
+
     have_round_2: Rule = Has("Progressive Round", count=2)
     can_decision: Rule = Has("Progressive Round", count=3)
+    have_stars: Rule = Has("Star Punch Unlock")
+    have_heal: Rule = Has("Heal in Between Rounds")
 
     # Some entrance rules may only apply if the player enabled certain options.
     # In our case, if the hammer option is enabled, we need to add the Hammer requirement to the Entrance from
@@ -64,7 +67,7 @@ def set_all_entrance_rules(world: MTPOWorld) -> None:
     world.set_rule(tiger_to_bull, have_bull_1)
     world.set_rule(bull_to_honda_2, have_honda_2)
     world.set_rule(honda_2_to_soda, have_soda)
-    world.set_rule(soda_to_bull_2, have_bull_2)
+    world.set_rule(soda_to_bull_2, have_bull_2 & (have_stars | can_decision))
     world.set_rule(bull_2_to_don_2, have_don_2)
     world.set_rule(don_2_to_sandman, have_sandman)
     world.set_rule(sandman_to_macho, have_macho)
@@ -85,8 +88,11 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     have_sandman: Rule = Has("Mr. Sandman")
     have_macho: Rule = Has("Super Macho Man")
     have_tyson: Rule = Has("Mike Tyson")
+
     have_round_2: Rule = Has("Progressive Round", count=2)
     can_decision: Rule = Has("Progressive Round", count=3)
+    have_stars: Rule = Has("Star Punch Unlock")
+    have_heal: Rule = Has("Heal in Between Rounds")
 
     goal_tko = OptionFilter(Goal, 0)
     goal_ko = OptionFilter(Goal, 1)
@@ -109,21 +115,21 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     kaiser_tko = world.get_location("TKO Von Kaiser")
     world.set_rule(kaiser_tko, have_kaiser)
     kaiser_ko = world.get_location("KO Von Kaiser")
-    world.set_rule(kaiser_ko, have_kaiser & Has("Progressive Round", count=2))
+    world.set_rule(kaiser_ko, have_kaiser & have_round_2)
     kaiser_decision = world.get_location("Von Kaiser Decision")
-    world.set_rule(kaiser_decision, have_kaiser & can_decision)
+    world.set_rule(kaiser_decision, have_kaiser & can_decision & have_stars)
 
     honda_1_tko = world.get_location("TKO Piston Honda")
     world.set_rule(honda_1_tko, have_honda_1)
     honda_1_ko = world.get_location("KO Piston Honda")
-    world.set_rule(honda_1_ko, have_honda_1)
+    world.set_rule(honda_1_ko, have_honda_1 & have_round_2)
     
     don_1_tko = world.get_location("TKO Don Flamenco")
     world.set_rule(don_1_tko, have_don_1)
     don_1_ko = world.get_location("KO Don Flamenco")
     world.set_rule(don_1_ko, have_don_1)
     don_1_decision = world.get_location("Don Flamenco Decision")
-    world.set_rule(don_1_decision, have_don_1 & can_decision)
+    world.set_rule(don_1_decision, have_don_1 & can_decision & have_stars)
 
     hippo_ko = world.get_location("KO King Hippo")
     world.set_rule(hippo_ko, have_hippo)
@@ -131,7 +137,7 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     tiger_tko = world.get_location("TKO Great Tiger")
     world.set_rule(tiger_tko, have_tiger)
     tiger_decision = world.get_location("Great Tiger Decision")
-    world.set_rule(tiger_decision, have_tiger & can_decision)
+    world.set_rule(tiger_decision, have_tiger & can_decision & have_stars)
 
     bull_1_tko = world.get_location("TKO Bald Bull")
     world.set_rule(bull_1_tko, have_bull_1)
@@ -148,14 +154,14 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     soda_ko = world.get_location("KO Soda Popinski")
     world.set_rule(soda_ko, have_soda & can_decision)
     soda_decision = world.get_location("Soda Popinski Decision")
-    world.set_rule(soda_decision, have_soda & can_decision)
+    world.set_rule(soda_decision, have_soda & can_decision & have_stars)
 
     bull_2_tko = world.get_location("TKO Bald Bull 2")
-    world.set_rule(bull_2_tko, have_bull_2 & Has("Star Punch Unlock"))
+    world.set_rule(bull_2_tko, have_bull_2 & have_stars)
     bull_2_ko = world.get_location("KO Bald Bull 2")
     world.set_rule(bull_2_ko, have_bull_2 & can_decision)
     bull_2_decision = world.get_location("Bald Bull 2 Decision")
-    world.set_rule(bull_2_decision, have_bull_2 & can_decision)
+    world.set_rule(bull_2_decision, have_bull_2 & can_decision & have_stars)
 
     don_2_tko = world.get_location("TKO Don Flamenco 2")
     world.set_rule(don_2_tko, have_don_2)

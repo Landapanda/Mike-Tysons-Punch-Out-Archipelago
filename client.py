@@ -9,6 +9,7 @@ from . import options, world
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
 
+# RAM
 CURRENT_MATCH = 0x001
 CURRENT_OPPONENT_1 = 0x002
 CURRENT_OPPONENT_2 = 0x003
@@ -22,8 +23,19 @@ STARS_HELD = 0x0342
 STARS_INC = 0x0343
 STARS_HAVE = 0x34A # 64 + star amount (65 = 1 star)
 OPPONENT_KNOCKDOWNS = 0x03CA
+SELECT_REFILL = 0x03D9 #HP refilled in between rounds
 SCORE_10000 = 0x03E9 #Ten-thousandths place
 SCORE_1000 = 0x03EA # Thousandths place
+
+# ROM
+busy_signal_rom = [0x0EDAC, 0x0EDAD, 0x0EDAE, 0x0EDAF, 0x0EDB0, 0x0EDB1, 0x0EDB2, 0x0EDB3, 0x0EDB4, 0x0EDB5]
+busy_signal_code = [8, 0, 0, 4, 2, 2, 2, 6, 0, 2]
+busy_signal_2_rom = [0x0EDA2, 0x0EDA3, 0x0EDA4, 0x0EDA5, 0x0EDA6, 0x0EDA7, 0x0EDA8, 0x0EDA9, 0x0EDAA, 0xEDAB]
+busy_signal_2_code = [0, 7, 5, 5, 4, 1, 6, 1, 1, 3]
+busy_signal_3_rom = [0x0EDB6, 0x0EDB7, 0x0EDB8, 0x0EDB9, 0x0EDBA, 0x0EDBB, 0x0EDBC, 0x0EDBD, 0x0EDBE, 0x0EDBF]
+busy_signal_3_code = [2, 0, 6, 8, 8, 2, 2, 0, 4, 0]
+credits_rom = [0x0EDCA, 0x0EDCB, 0x0EDCC, 0x0EDCD, 0x0EDCE, 0x0EDCF, 0x0EDD0, 0x0EDD1, 0x0EDD2, 0x0EDD3]
+credits_code = [1, 0, 6, 1, 1, 3, 0, 1, 2, 0]
 
 IN_FIGHT = 255 #0xFF
 OPPONENT_KNOCKED_DOWN = 1
@@ -46,9 +58,9 @@ DON_2 = (0, 32)
 SANDMAN = (3, 16)
 MACHO = (4, 48)
 TYSON = (5, 64)
+DEMO = (3, 0)
 
 goals = [32, 33, 34]
-
 
 logger = logging.getLogger("Client")
 
@@ -71,8 +83,19 @@ class MTPOClient(BizHawkClient):
     has_sandman: bool = False
     has_macho: bool = False
     has_tyson: bool = False
+
     stars_unlocked: bool = False
     rounds_unlocked: int = 1
+    heal_unlocked: bool = False
+    busy_1_unlocked: bool = False
+    busy_2_unlocked: bool = False
+    busy_3_unlocked: bool = False
+    credits_unlocked: bool = False
+
+    # star_can_send: bool = False
+    # stars_received: int = 0
+    # stars_pending: int = 0
+    # previous_match: int = None
 
     def __init__(self):
         super().__init__()
@@ -113,8 +136,17 @@ class MTPOClient(BizHawkClient):
         self.has_sandman = False
         self.has_macho = False
         self.has_tyson = False
+
         self.stars_unlocked = False
         self.rounds_unlocked = 0
+        self.heal_unlocked = False
+        self.busy_1_unlocked = False
+        self.busy_2_unlocked = False
+        self.busy_3_unlocked = False
+        self.credits_unlocked = False
+        
+        # self.stars_pending = 0
+
         for item in ctx.items_received:
             name = ctx.item_names.lookup_in_game(item.item)
             if name == "Von Kaiser":
@@ -142,11 +174,24 @@ class MTPOClient(BizHawkClient):
             if name == "Super Macho Man":
                 self.has_macho = True
             if name == "Mike Tyson":
-                self.has_tyson
+                self.has_tyson = True
             if name == "Star Punch Unlock":
                 self.stars_unlocked = True
             if name == "Progressive Round":
                 self.rounds_unlocked += 1
+            if name == "Heal in Between Rounds":
+                self.heal_unlocked = True
+            if name == "Busy Signal Code":
+                self.busy_1_unlocked = True
+            if name == "Busy Signal Code 2":
+                self.busy_2_unlocked = True
+            if name == "Busy Signal Code 3":
+                self.busy_3_unlocked = True
+            if name == "Credits Code":
+                self.credits_unlocked = True
+            # if name == "Star":
+            #     self.stars_pending += 1
+                
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         from worlds._bizhawk import read, write
@@ -169,10 +214,12 @@ class MTPOClient(BizHawkClient):
             (STARS_INC, 1, "RAM"),
             (STARS_HAVE, 1, "RAM"),
             (SCORE_1000, 1, "RAM"),
-            (SCORE_10000, 1, "RAM")
+            (SCORE_10000, 1, "RAM"),
+            (SELECT_REFILL, 1, "RAM")
         ])
         (match, opponent_1, opponent_2, knockdown, round, opponent_knockdown_count, 
-         down_count, timer_minute, fight_status, stars, star_able, inc_stars, star_has, score_thousand, score_ten_thousand) = (r[0] for r in reads)
+         down_count, timer_minute, fight_status, stars, star_able, inc_stars, star_has, score_thousand, score_ten_thousand,
+         hp_refill) = (r[0] for r in reads)
         writes = []
 
         # logger.info(
@@ -342,100 +389,99 @@ class MTPOClient(BizHawkClient):
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
 
         # Item Checks
-        # TODO: * Prevent in-between round healing without the item.
-        #       * Prevent filler code usage without their items.
-        if self.has_kaiser == False:
-            if match >= 1:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([0]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([JOE[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([JOE[1]]), "RAM")
-                ])
-        elif self.has_honda_1 == False:
-            if match >= 2:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([1]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([KAISER[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([KAISER[1]]), "RAM")
-                ])
-        elif self.has_don_1 == False:
-            if match >= 3:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([2]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([HONDA_1[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([HONDA_1[1]]), "RAM")
-                ])
-        elif self.has_hippo == False:
-            if match >= 4:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([3]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([DON_1[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([DON_1[1]]), "RAM")
-                ])
-        elif self.has_tiger == False:
-            if match >= 5:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([4]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([HIPPO[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([HIPPO[1]]), "RAM")
-                ])
-        elif self.has_bull_1 == False:
-            if match >=6:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([5]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
-                ])
-        elif self.has_honda_2 == False:
-            if match >= 7:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([6]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
-                ])
-        elif self.has_soda == False:
-            if match >= 8:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([7]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([HONDA_2[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([HONDA_2[1]]), "RAM")
-                ])
-        elif self.has_bull_2 == False:
-            if match >= 9:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([8]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([SODA[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([SODA[1]]), "RAM")
-                ])
-        elif self.has_don_2 == False:
-            if match >= 10:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([9]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([BULL_2[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([BULL_2[1]]), "RAM")
-                ])
-        elif self.has_sandman == False:
-            if match >= 11:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([10]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([DON_2[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([DON_2[1]]), "RAM")
-                ])
-        elif self.has_macho == False:
-            if match >= 12:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([11]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([SANDMAN[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([SANDMAN[1]]), "RAM")
-                ])
-        elif self.has_tyson == False:
-            if match >= 13:
-                writes.extend([
-                    (CURRENT_MATCH, bytes([12]), "RAM"),
-                    (CURRENT_OPPONENT_1, bytes([MACHO[0]]), "RAM"), 
-                    (CURRENT_OPPONENT_2, bytes([MACHO[1]]), "RAM")
-                ])
-        if self.stars_unlocked == False:
+        if not match == 19: # Hopefully prevents visual glitch on the Bull DEMO fight that can sometimes freeze the game.
+            if not self.has_kaiser:
+                if match >= 1:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([0]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([JOE[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([JOE[1]]), "RAM")
+                    ])
+            elif not self.has_honda_1:
+                if match >= 2:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([1]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([KAISER[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([KAISER[1]]), "RAM")
+                    ])
+            elif not self.has_don_1:
+                if match >= 3:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([2]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([HONDA_1[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([HONDA_1[1]]), "RAM")
+                    ])
+            elif not self.has_hippo:
+                if match >= 4:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([3]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([DON_1[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([DON_1[1]]), "RAM")
+                    ])
+            elif not self.has_tiger:
+                if match >= 5:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([4]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([HIPPO[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([HIPPO[1]]), "RAM")
+                    ])
+            elif not self.has_bull_1:
+                if match >=6:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([5]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
+                    ])
+            elif not self.has_honda_2:
+                if match >= 7:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([6]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
+                    ])
+            elif not self.has_soda:
+                if match >= 8:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([7]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([HONDA_2[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([HONDA_2[1]]), "RAM")
+                    ])
+            elif not self.has_bull_2:
+                if match >= 9:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([8]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([SODA[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([SODA[1]]), "RAM")
+                    ])
+            elif not self.has_don_2:
+                if match >= 10:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([9]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([BULL_2[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([BULL_2[1]]), "RAM")
+                    ])
+            if not self.has_sandman:
+                if match >= 11:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([10]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([DON_2[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([DON_2[1]]), "RAM")
+                    ])
+            elif not self.has_macho:
+                if match >= 12:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([11]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([SANDMAN[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([SANDMAN[1]]), "RAM")
+                    ])
+            elif not self.has_tyson:
+                if match >= 13:
+                    writes.extend([
+                        (CURRENT_MATCH, bytes([12]), "RAM"),
+                        (CURRENT_OPPONENT_1, bytes([MACHO[0]]), "RAM"), 
+                        (CURRENT_OPPONENT_2, bytes([MACHO[1]]), "RAM")
+                    ])
+        if not self.stars_unlocked:
             writes.extend([
                 (INIT_STAR, bytes([0]), "RAM"),
                 (STARS_INC, bytes([0]), "RAM"),
@@ -453,6 +499,77 @@ class MTPOClient(BizHawkClient):
                 (SCORE_10000, bytes([0]), "RAM"),
                 (SCORE_1000, bytes([0]), "RAM")
             ])
+        if not self.heal_unlocked:
+            writes.append(
+                (SELECT_REFILL, bytes([0]), "RAM")
+            )
+        if not self.busy_1_unlocked:
+            for i in busy_signal_rom:
+                writes.append(
+                    (i, bytes([255]), "PRG ROM")
+                )
+        else:
+            for i in range(len(busy_signal_rom)):
+                writes.append(
+                    (busy_signal_rom[i], bytes([busy_signal_code[i]]), "PRG ROM")
+                )
+        if not self.busy_2_unlocked:
+            for i in busy_signal_2_rom:
+                writes.append(
+                    (i, bytes([255]), "PRG ROM")
+                )
+        else:
+            for i in range(len(busy_signal_2_rom)):
+                writes.append(
+                    (busy_signal_rom[i], bytes([busy_signal_2_code[i]]), "PRG ROM")
+                )
+        if not self.busy_3_unlocked:
+            for i in busy_signal_3_rom:
+                writes.append(
+                    (i, bytes([255]), "PRG ROM")
+                )
+        else:
+            for i in range(len(busy_signal_3_rom)):
+                writes.append(
+                    (busy_signal_rom[i], bytes([busy_signal_3_code[i]]), "PRG ROM")
+                )
+        if not self.credits_unlocked:
+            for i in credits_rom:
+                writes.append(
+                    (i, bytes([255]), "PRG ROM")
+                )
+        else:
+            for i in range(len(credits_rom)):
+                writes.append(
+                    (credits_rom[i], bytes([credits_code[i]]), "PRG ROM")
+                )
+        # IT DOESNT WORK AND I DONT KNOW WHY AND ITS SCARY AND IM SCARED
+        """
+        Fr though I understand that it's looping between setting the value to 0 and adding 1 in check_unlocks but if I increment the pending
+        in the check unlocks below it doesn't seem to ever do anything even if I move this chunk below it. There's probably an easy/good way to
+        make it work but I can't figure it out because I am the stupids. 
+        Overcomplicated it with bools earlier and now trying a pending int variable and still can't figure it out.
+        """
+        # if self.stars_unlocked and self.stars_pending >= 1:
+        #     if self.previous_match is None:
+        #         self.previous_match = match
+        #     elif match != self.previous_match:
+        #         if match != 19 and self.previous_match != 19:
+        #             self.star_can_send = True
+        #         self.previous_match = match
+        #     logger.info(
+        #         f"{self.previous_match}, {match}\ncan_send={self.star_can_send}\n"
+        #         f"stars: {self.stars_pending}"
+        #         )
+        #     if self.star_can_send and fight_status == IN_FIGHT: 
+        #         writes.extend([
+        #             (STARS_HELD, bytes([stars +1]), "RAM"),
+        #             (STARS_HAVE, bytes([star_has + 1]), "RAM")
+        #         ])
+        #         self.stars_pending = 0
+        #         self.star_can_send = False
+        #         logger.info("SENT")
+            
         
         # Check Unlocks
         self.check_unlocks(ctx)
@@ -466,10 +583,40 @@ class MTPOClient(BizHawkClient):
                 self.items += 1
             elif item_name == "Don Flamenco":
                 self.items += 1
+            elif item_name == "King Hippo":
+                self.items += 1
+            elif item_name == "Great Tiger":
+                self.items += 1
+            elif item_name == "Bald Bull":
+                self.items += 1
+            elif item_name == "Piston Honda 2":
+                self.items += 1
+            elif item_name == "Soda Popinski":
+                self.items += 1
+            elif item_name == "Bald Bull 2":
+                self.items += 1
+            elif item_name == "Don Flamenco 2":
+                self.items += 1
+            elif item_name == "Mr. Sandman":
+                self.items += 1
+            elif item_name == "Super Macho Man":
+                self.items += 1
+            elif item_name == "Mike Tyson":
+                self.items += 1
             elif item_name == "Star Punch Unlock":
                 self.items += 1
             elif item_name == "Progressive Round":
                 self.items += 1
+            elif item_name == "Heal in Between Rounds":
+                self.items += 1
+            elif item_name == "Busy Signal Code":
+                self.items += 1
+            elif item_name == "Credits Code":
+                self.items += 1
+            elif item_name == "End Round Trap":
+                self.items += 1
+            # elif item_name == "Star":
+            #     self.items += 1
 
         if writes:
             await write(ctx.bizhawk_ctx, writes)
