@@ -18,6 +18,8 @@ KNOCKED_DOWN = 0x005
 CURRENT_ROUND = 0x006
 CURRENT_COUNT = 0x00C1
 MINUTE = 0x0302
+SECONDS_10 = 0x304
+SECONDS_01 = 0x305
 INIT_STAR = 0x0340
 STARS_HELD = 0x0342
 STARS_INC = 0x0343
@@ -92,11 +94,18 @@ class MTPOClient(BizHawkClient):
     busy_3_unlocked: bool = False
     credits_unlocked: bool = False
 
-    star_can_send: bool = False
+    previous_match: int = None
+    match_changed: bool = False
+
     stars_received: int = 0
     stars_pending: int = 0
-    previous_match: int = None
+    star_can_send: bool = False
     star_queue_logged: bool = False
+
+    end_round_trap_received: int = 0
+    end_round_trap_pending: int = 0
+    trap_can_send: bool = False
+    trap_queue_logged: bool = False
 
     def __init__(self):
         super().__init__()
@@ -118,6 +127,7 @@ class MTPOClient(BizHawkClient):
                 ctx.want_slot_data = True
                 ctx.tags = {"AP"}
                 ctx.set_notify("stars")
+                ctx.set_notify("end_rounds")
                 logger.info("WORKING!!")
                 return True
             else:
@@ -129,6 +139,8 @@ class MTPOClient(BizHawkClient):
        if cmd == "Retrieved":
         stars = ctx.stored_data.get("stars", 0)
         logger.info(f"Stars already sent: {stars}")
+        end_rounds = ctx.stored_data.get("end_rounds", 0)
+        logger.info(f"Rounds ended by traps: {end_rounds}")
 
 
     def check_unlocks(self, ctx: "BizHawkClientContext") -> None:
@@ -155,6 +167,9 @@ class MTPOClient(BizHawkClient):
         self.credits_unlocked = False
         
         self.stars_received = 0
+        stored_stars = ctx.stored_data.get("stars") or 0
+        self.end_round_trap_received = 0
+        stored_end_rounds = ctx.stored_data.get("end_rounds") or 0
 
         for item in ctx.items_received:
             name = ctx.item_names.lookup_in_game(item.item)
@@ -200,7 +215,10 @@ class MTPOClient(BizHawkClient):
                 self.credits_unlocked = True
             if name == "Star":
                 self.stars_received += 1
-        self.stars_pending = self.stars_received - ctx.stored_data.get("stars", 0)
+            if name == "End Round Trap":
+                self.end_round_trap_received += 1
+        self.stars_pending = self.stars_received - stored_stars
+        self.end_round_trap_pending = self.end_round_trap_received - stored_end_rounds
                 
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
@@ -217,6 +235,8 @@ class MTPOClient(BizHawkClient):
             (OPPONENT_KNOCKDOWNS, 1, "RAM"),
             (CURRENT_COUNT, 1, "RAM"),
             (MINUTE, 1, "RAM"),
+            (SECONDS_10, 1, "RAM"),
+            (SECONDS_01, 1, "RAM"),
             (FIGHT_IN, 1, "RAM"),
             (STARS_HELD, 1, "RAM"),
             (INIT_STAR, 1, "RAM"),
@@ -227,7 +247,7 @@ class MTPOClient(BizHawkClient):
             (SELECT_REFILL, 1, "RAM")
         ])
         (match, opponent_1, opponent_2, knockdown, round, opponent_knockdown_count, 
-         down_count, timer_minute, fight_status, stars, star_able, inc_stars, star_has, score_thousand, score_ten_thousand,
+         down_count, timer_minute, timer_second_10, timer_second_01, fight_status, stars, star_able, inc_stars, star_has, score_thousand, score_ten_thousand,
          hp_refill) = (r[0] for r in reads)
         writes = []
 
@@ -496,6 +516,7 @@ class MTPOClient(BizHawkClient):
                 (STARS_INC, bytes([0]), "RAM"),
                 (STARS_HAVE, bytes([64]), "RAM")
             ])
+
         if self.rounds_unlocked == 1 and round == 1 and timer_minute == 3 and fight_status == IN_FIGHT:
             writes.extend([
                 (CURRENT_ROUND, bytes([3]), "RAM"),
@@ -512,6 +533,7 @@ class MTPOClient(BizHawkClient):
             writes.append(
                 (SELECT_REFILL, bytes([0]), "RAM")
             )
+
         if not self.busy_1_unlocked:
             for i in busy_signal_rom:
                 writes.append(
@@ -552,18 +574,24 @@ class MTPOClient(BizHawkClient):
                 writes.append(
                     (credits_rom[i], bytes([credits_code[i]]), "PRG ROM")
                 )
+
+
+        # Check for match changing. Could be updated to include losses.
+        if self.previous_match is None:
+            self.previous_match = match
+        elif match != self.previous_match:
+            if match != 19 and self.previous_match != 19:
+                self.match_changed = True
+            self.previous_match = match
+
         if self.stars_unlocked and self.stars_pending > 0:
-            # Check for match changing. Could be updated to include losses.
-            if self.previous_match is None:
-                self.previous_match = match
-            elif match != self.previous_match:
-                if match != 19 and self.previous_match != 19:
-                    self.star_can_send = True
-                self.previous_match = match
+            if self.match_changed:
+                self.star_can_send = True
             stars_sending = min(3, self.stars_pending)
             if not self.star_queue_logged:
                 logger.info(f"{self.stars_pending} Star(s) queued for next fight!")
                 self.star_queue_logged = True
+            logger.info(f"can_send={self.star_can_send}, fight_status={fight_status}")
             if self.star_can_send and fight_status == IN_FIGHT:
                 star_add = [
                     (STARS_HELD, bytes([stars + stars_sending]), "RAM"),
@@ -586,6 +614,38 @@ class MTPOClient(BizHawkClient):
                 logger.info(f"{stars_sending} star(s) sent!")
         else:
             self.star_queue_logged = False
+
+        # logger.info(
+        #     f"received: {self.end_round_trap_received}, pending={self.end_round_trap_pending}, "
+        #     f"end_rounds={ctx.stored_data.get("end_rounds", 0)}, can_send={self.trap_can_send}, "
+        #     f"log={self.trap_queue_logged}"
+        #     )
+        if self.end_round_trap_pending > 0:
+            if self.match_changed:
+                self.trap_can_send = True
+            if not self.trap_queue_logged:
+                logger.info("Round End Trap queued.")
+                self.trap_queue_logged = True
+            if self.trap_can_send and fight_status == IN_FIGHT:
+                skip_round = [
+                    (MINUTE, bytes([2]), "RAM"),
+                    (SECONDS_10, bytes([5]), "RAM"),
+                    (SECONDS_01, bytes([9]), "RAM")
+                    ]
+                await write(ctx.bizhawk_ctx, skip_round)
+                await ctx.send_msgs([{
+                    "cmd": "Set",
+                    "key": "end_rounds",
+                    "default": 0,
+                    "want_reply": True,
+                    "operations": [{"operation": "add", "value": 1}]
+                }])
+                self.end_round_trap_pending -= 1
+                self.trap_can_send = False
+                logger.info("Round End Trap sent.")
+        else:
+            self.trap_queue_logged = False
+        
             
         
         # Check Unlocks
@@ -634,6 +694,8 @@ class MTPOClient(BizHawkClient):
                 self.items += 1
             elif item_name == "Star":
                  self.items += 1
+            elif item_name == "End Round Trap":
+                self.items += 1
 
         if writes:
             await write(ctx.bizhawk_ctx, writes)

@@ -56,7 +56,7 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Busy Signal Code 3": ItemClassification.filler,
     "Credits Code": ItemClassification.filler,
     "Star": ItemClassification.filler,
-    "Math Trap": ItemClassification.trap,
+    "End Round Trap": ItemClassification.trap,
 }
 
 class MTPOItem(Item):

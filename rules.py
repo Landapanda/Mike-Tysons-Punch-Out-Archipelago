@@ -180,13 +180,13 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     macho_ko = world.get_location("KO Super Macho Man")
     world.set_rule(macho_ko, have_macho & have_round_2)
 
-    if goal_tko:
+    if world.options.goal.value == 0:
         tyson_tko = world.get_location("TKO Mike Tyson")
         world.set_rule(tyson_tko, have_tyson)
-    elif goal_ko:
+    elif world.options.goal.value == 1:
         tyson_ko = world.get_location("KO Mike Tyson")
         world.set_rule(tyson_ko, have_tyson & can_decision)
-    elif goal_decision:
+    else:
         tyson_decision = world.get_location("Mike Tyson Decision")
         world.set_rule(tyson_decision, have_tyson & can_decision)
 
