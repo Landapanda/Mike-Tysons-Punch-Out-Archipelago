@@ -11,9 +11,9 @@ An Archipelago Randomizer for Mike Tyson's Punch-Out!! on NES.
 - Progressive Rounds: Starting with a single round, unlock more rounds to gain access to KOs and Decisions.
 - Star Punch Unlock: Start without the ability to earn stars and unlock the ability to earn and use stars.
 - Healing: Unlock in between round healing.
-- Stars: Obtain a free star at the start of the next fight, even if your opponent is the same. (Not yet implemented.)
+- Stars: Obtain a free star at the start of the next fight.
 - Pass Codes: Obtain Filler pass codes - Busy Signal Codes and the Credits Code
-- Traps: End Round Trap, Go Pink Trap, -1000 Points Trap. (None are implemented yet, simply ideas.)
+- Traps: End Round Trap, Go Pink Trap, -1000 Points Trap. (Only End Round Trap implemented so far, other two are just ideas for now.)
 
 ## Goals
 - TKO Mike Tyson: Get 3 knockdowns on Tyson in a single round.
