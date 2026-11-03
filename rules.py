@@ -168,7 +168,7 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     don_2_ko = world.get_location("KO Don Flamenco 2")
     world.set_rule(don_2_ko, have_don_2 & can_decision)
     don_2_decision = world.get_location("Don Flamenco 2 Decision")
-    world.set_rule(don_2_decision, have_don_2 & can_decision)
+    world.set_rule(don_2_decision, have_don_2 & can_decision & have_stars)
 
     sandman_tko = world.get_location("TKO Mr. Sandman")
     world.set_rule(sandman_tko, have_sandman)

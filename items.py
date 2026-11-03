@@ -72,7 +72,7 @@ def get_random_filler_item_name(world: MTPOWorld) -> str:
     # This ensures that generating with the same generator seed twice yields the same output.
     # DO NOT use a bare random object from Python's built-in random module.
     if world.random.randint(0, 99) < world.options.trap_chance:
-        return "Math Trap"
+        return "End Round Trap"
     return "Star"
 
 

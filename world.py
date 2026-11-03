@@ -33,6 +33,6 @@ class MTPOWorld(World):
     def fill_slot_data(self):
         return {
             "goal": self.options.goal.value,
-            "trap-chance": self.options.trap_chance.value
+            "trap-chance": self.options.trap_chance.value,
         }
     

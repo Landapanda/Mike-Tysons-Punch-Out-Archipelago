@@ -92,10 +92,11 @@ class MTPOClient(BizHawkClient):
     busy_3_unlocked: bool = False
     credits_unlocked: bool = False
 
-    # star_can_send: bool = False
-    # stars_received: int = 0
-    # stars_pending: int = 0
-    # previous_match: int = None
+    star_can_send: bool = False
+    stars_received: int = 0
+    stars_pending: int = 0
+    previous_match: int = None
+    star_queue_logged: bool = False
 
     def __init__(self):
         super().__init__()
@@ -110,17 +111,25 @@ class MTPOClient(BizHawkClient):
             return False
 
         try:
+            # Checks for first row of bytes. Could be changed to check for "TYSON" but would negate using Mr. Dream version
             if rom_system == "NES" and bytes(rom_check[0]) == bytes.fromhex("3080EF8A238BB692"):
                 ctx.game = self.game
                 ctx.items_handling = 0b111
                 ctx.want_slot_data = True
                 ctx.tags = {"AP"}
+                ctx.set_notify("stars")
                 logger.info("WORKING!!")
                 return True
             else:
                 return False
         except:
             return False
+
+    async def on_package(self, ctx: "BizHawkClientContext", cmd, args):
+       if cmd == "Retrieved":
+        stars = ctx.stored_data.get("stars", 0)
+        logger.info(f"Stars already sent: {stars}")
+
 
     def check_unlocks(self, ctx: "BizHawkClientContext") -> None:
         self.has_kaiser = False
@@ -145,7 +154,7 @@ class MTPOClient(BizHawkClient):
         self.busy_3_unlocked = False
         self.credits_unlocked = False
         
-        # self.stars_pending = 0
+        self.stars_received = 0
 
         for item in ctx.items_received:
             name = ctx.item_names.lookup_in_game(item.item)
@@ -189,13 +198,13 @@ class MTPOClient(BizHawkClient):
                 self.busy_3_unlocked = True
             if name == "Credits Code":
                 self.credits_unlocked = True
-            # if name == "Star":
-            #     self.stars_pending += 1
+            if name == "Star":
+                self.stars_received += 1
+        self.stars_pending = self.stars_received - ctx.stored_data.get("stars", 0)
                 
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         from worlds._bizhawk import read, write
-
         if ctx.server is None or ctx.auth is None:
             return
 
@@ -543,32 +552,40 @@ class MTPOClient(BizHawkClient):
                 writes.append(
                     (credits_rom[i], bytes([credits_code[i]]), "PRG ROM")
                 )
-        # IT DOESNT WORK AND I DONT KNOW WHY AND ITS SCARY AND IM SCARED
-        """
-        Fr though I understand that it's looping between setting the value to 0 and adding 1 in check_unlocks but if I increment the pending
-        in the check unlocks below it doesn't seem to ever do anything even if I move this chunk below it. There's probably an easy/good way to
-        make it work but I can't figure it out because I am the stupids. 
-        Overcomplicated it with bools earlier and now trying a pending int variable and still can't figure it out.
-        """
-        # if self.stars_unlocked and self.stars_pending >= 1:
-        #     if self.previous_match is None:
-        #         self.previous_match = match
-        #     elif match != self.previous_match:
-        #         if match != 19 and self.previous_match != 19:
-        #             self.star_can_send = True
-        #         self.previous_match = match
-        #     logger.info(
-        #         f"{self.previous_match}, {match}\ncan_send={self.star_can_send}\n"
-        #         f"stars: {self.stars_pending}"
-        #         )
-        #     if self.star_can_send and fight_status == IN_FIGHT: 
-        #         writes.extend([
-        #             (STARS_HELD, bytes([stars +1]), "RAM"),
-        #             (STARS_HAVE, bytes([star_has + 1]), "RAM")
-        #         ])
-        #         self.stars_pending = 0
-        #         self.star_can_send = False
-        #         logger.info("SENT")
+        if self.stars_unlocked and self.stars_pending > 0:
+            # Check for match changing. Could be updated to include losses.
+            if self.previous_match is None:
+                self.previous_match = match
+            elif match != self.previous_match:
+                if match != 19 and self.previous_match != 19:
+                    self.star_can_send = True
+                self.previous_match = match
+            stars_sending = min(3, self.stars_pending)
+            if not self.star_queue_logged:
+                logger.info(f"{self.stars_pending} Star(s) queued for next fight!")
+                self.star_queue_logged = True
+            if self.star_can_send and fight_status == IN_FIGHT:
+                star_add = [
+                    (STARS_HELD, bytes([stars + stars_sending]), "RAM"),
+                    (STARS_HAVE, bytes([star_has + stars_sending]), "RAM"),
+                ]
+                await write(ctx.bizhawk_ctx, star_add)
+                await ctx.send_msgs([{
+                    "cmd": "Set",
+                    "key": "stars",
+                    "default": 0,
+                    "want_reply": True,
+                    "operations": [{"operation": "add", "value": stars_sending}]
+                }])
+                self.stars_pending -= stars_sending
+                self.star_can_send = False
+                # logger.info(
+                # f"{self.previous_match}, {match}\ncan_send={self.star_can_send}\n"
+                # f"stars: {self.stars_pending}, data:{ctx.stored_data.get("stars", 0)}"
+                # )
+                logger.info(f"{stars_sending} star(s) sent!")
+        else:
+            self.star_queue_logged = False
             
         
         # Check Unlocks
@@ -615,8 +632,8 @@ class MTPOClient(BizHawkClient):
                 self.items += 1
             elif item_name == "End Round Trap":
                 self.items += 1
-            # elif item_name == "Star":
-            #     self.items += 1
+            elif item_name == "Star":
+                 self.items += 1
 
         if writes:
             await write(ctx.bizhawk_ctx, writes)
