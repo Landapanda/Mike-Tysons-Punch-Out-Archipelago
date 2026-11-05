@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 import logging
-from .locations import LOCATION_NAME_TO_ID
+from .locations import LOCATION_NAME_TO_ID, get_location_names_with_ids
 from . import options, world
 
 if TYPE_CHECKING:
@@ -17,6 +17,7 @@ FIGHT_IN = 0x004 # FF = in fight, 01 = Not in fight
 KNOCKED_DOWN = 0x005
 CURRENT_ROUND = 0x006
 CURRENT_COUNT = 0x00C1
+LOSSES = 0x0173
 MINUTE = 0x0302
 SECONDS_10 = 0x304
 SECONDS_01 = 0x305
@@ -45,24 +46,25 @@ TKO = 3
 KO = 163 # A3 = 10 count
 DECISION = 4 # After round 3 it becomes 4 for the decision
 
-# (opponent_1, opponent_2)
+# (opponent_1, opponent_2, score_req (in thousands))
 JOE = (0, 0, 5)
-KAISER = (2, 0)
-HONDA_1 = (5, 48)
-DON_1 = (0, 16)
-HIPPO = (1, 00)
-TIGER = (2, 16)
-BULL_1 = (3, 48)
-HONDA_2 = (5, 32)
-SODA = (4, 16)
-BULL_2 = (3, 32)
-DON_2 = (0, 32)
-SANDMAN = (3, 16)
-MACHO = (4, 48)
-TYSON = (5, 64)
-DEMO = (3, 0)
+KAISER = (2, 0, 8)
+HONDA_1 = (5, 48, None)
+DON_1 = (0, 16, 10)
+HIPPO = (1, 00, None)
+TIGER = (2, 16, 10)
+BULL_1 = (3, 48, None)
+HONDA_2 = (5, 32, 3)
+SODA = (4, 16, 10)
+BULL_2 = (3, 32, 7)
+DON_2 = (0, 32, 5)
+SANDMAN = (3, 16, None)
+MACHO = (4, 48, None)
+TYSON = (5, 64, 5)
+DEMO = (3, 0, None)
 
-goals = [32, 33, 34]
+macho_goals = [get_location_names_with_ids(["Defeat Super Macho Man"]).values(), get_location_names_with_ids(["KO Super Macho Man"]).values()]
+tyson_goals = [get_location_names_with_ids(["Defeat Mike Tyson"]).values(), get_location_names_with_ids(["KO Mike Tyson"]).values(), get_location_names_with_ids(["Mike Tyson Decision"]).values()]
 
 logger = logging.getLogger("Client")
 
@@ -96,6 +98,10 @@ class MTPOClient(BizHawkClient):
 
     previous_match: int = None
     match_changed: bool = False
+    previous_round: int = None
+    round_changed: bool = False
+    previous_losses: int = None
+    losses_changed: bool = False
 
     stars_received: int = 0
     stars_pending: int = 0
@@ -128,7 +134,7 @@ class MTPOClient(BizHawkClient):
                 ctx.tags = {"AP"}
                 ctx.set_notify("stars")
                 ctx.set_notify("end_rounds")
-                logger.info("WORKING!!")
+                # logger.info("WORKING!!")
                 return True
             else:
                 return False
@@ -226,6 +232,10 @@ class MTPOClient(BizHawkClient):
         if ctx.server is None or ctx.auth is None:
             return
 
+        goal = ctx.slot_data["goal"]
+        tko_ko_on = ctx.slot_data["tko_ko"]
+        decision_on = ctx.slot_data["decision"]
+
         reads = await read(ctx.bizhawk_ctx, [
             (CURRENT_MATCH, 1, "RAM"),
             (CURRENT_OPPONENT_1, 1, "RAM"),
@@ -234,6 +244,7 @@ class MTPOClient(BizHawkClient):
             (CURRENT_ROUND, 1, "RAM"),
             (OPPONENT_KNOCKDOWNS, 1, "RAM"),
             (CURRENT_COUNT, 1, "RAM"),
+            (LOSSES, 1, "RAM"),
             (MINUTE, 1, "RAM"),
             (SECONDS_10, 1, "RAM"),
             (SECONDS_01, 1, "RAM"),
@@ -247,9 +258,22 @@ class MTPOClient(BizHawkClient):
             (SELECT_REFILL, 1, "RAM")
         ])
         (match, opponent_1, opponent_2, knockdown, round, opponent_knockdown_count, 
-         down_count, timer_minute, timer_second_10, timer_second_01, fight_status, stars, star_able, inc_stars, star_has, score_thousand, score_ten_thousand,
-         hp_refill) = (r[0] for r in reads)
+         down_count, losing, timer_minute, timer_second_10, timer_second_01, fight_status, stars, star_able, 
+         inc_stars, star_has, score_thousand, score_ten_thousand, hp_refill) = (r[0] for r in reads)
         writes = []
+
+        tko_logic = (knockdown == OPPONENT_KNOCKED_DOWN) and (opponent_knockdown_count == TKO)
+        ko_logic = (knockdown == OPPONENT_KNOCKED_DOWN) and (down_count == KO)
+
+        def decision_logic_maker(fighter):
+            score_req = fighter[2]
+            if score_req == 10:
+                scoring = score_ten_thousand
+                score_req = 1
+            else:
+                scoring = score_thousand
+            decision_logic = (round == DECISION) and (scoring >= score_req)
+            return decision_logic
 
         # logger.info(
         # f"Match={match}, Opponent1={opponent_1}, "
@@ -262,160 +286,277 @@ class MTPOClient(BizHawkClient):
         if fight_status == IN_FIGHT:
             #Glass Joe
             location_id = None
+            location_name = None
             if opponent_1 == JOE[0] and opponent_2 == JOE[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[0]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[1]
-                elif round == DECISION and score_thousand >= 5:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[2]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Glass Joe"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Glass Joe"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(JOE):
+                            location_name = "Glass Joe Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Glass Joe"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
                 
             #Von Kaiser
             location_id = None
+            location_name = None
             if opponent_1 == KAISER[0] and opponent_2 == KAISER[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[3]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[4]
-                elif round == DECISION and score_thousand >= 8:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[5]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Von Kaiser"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Von Kaiser"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(KAISER):
+                            location_name = "Von Kaiser Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Von Kaiser"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Piston Honda 1
             location_id = None
+            location_name = None
             if opponent_1 == HONDA_1[0] and opponent_2 == HONDA_1[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[6]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[7]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Piston Honda"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Piston Honda"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Piston Honda"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Don Flamenco 1
             location_id = None
+            location_name = None
             if opponent_1 == DON_1[0] and opponent_2 == DON_1[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[8]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[9]
-                elif round == DECISION and score_ten_thousand >= 1:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[10]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Don Flamenco"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Don Flamenco"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(DON_1):
+                            location_name = "Don Flamenco Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Don Flamenco"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             # King Hippo
             location_id = None
+            location_name = None
             if opponent_1 == HIPPO[0] and opponent_2 == HIPPO[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[11]
+                if ko_logic:
+                    location_name = "Defeat King Hippo"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Great Tiger
             location_id = None
+            location_name = None
             if opponent_1 == TIGER[0] and opponent_2 == TIGER[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[12]
-                elif round == DECISION and score_ten_thousand >= 1:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[13]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Great Tiger"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(TIGER):
+                            location_name = "Great Tiger Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic:
+                    location_name = "Defeat Great Tiger"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Bald Bull
             location_id = None
+            location_name = None
             if opponent_1 == BULL_1[0] and opponent_2 == BULL_1[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[14]
+                if tko_logic:
+                    location_name = "Defeat Bald Bull"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Piston Honda 2
             location_id = None
+            location_name = None
             if opponent_1 == HONDA_2[0] and opponent_2 == HONDA_2[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[15]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[16]
-                elif round == DECISION and score_thousand >= 5:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[17]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Piston Honda 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Piston Honda 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(HONDA_2):
+                            location_name = "Piston Honda 2 Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Piston Honda 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Soda Popinski
             location_id = None
+            location_name = None
             if opponent_1 == SODA[0] and opponent_2 == SODA[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[18]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[19]
-                elif round == DECISION and score_ten_thousand >= 1:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[20]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Soda Popinski"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Soda Popinski"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(SODA):
+                            location_name = "Soda Popinski Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Soda Popinski"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
             #Bald Bull 2
             location_id = None
+            location_name = None
             if opponent_1 == BULL_2[0] and opponent_2 == BULL_2[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[21]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[22]
-                elif round == DECISION and score_thousand >= 7:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[23]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Bald Bull 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Bald Bull 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(BULL_2):
+                            location_name = "Bald Bull 2 Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Bald Bull 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
 
             #Don Flamenco 2
             location_id = None
+            location_name = None
             if opponent_1 == DON_2[0] and opponent_2 == DON_2[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[24]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[25]
-                elif round == DECISION and score_ten_thousand >= 5:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[26]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Don Flamenco 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Don Flamenco 2"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on:
+                        if decision_logic_maker(DON_2):
+                            location_name = "Don Flamenco 2 Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Don Flamenco 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
-                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
+                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])  
 
             #Mr. Sandman
             location_id = None
+            location_name = None
             if opponent_1 == SANDMAN[0] and opponent_2 == SANDMAN[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[27]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[28]
+                if tko_ko_on:
+                    if tko_logic:
+                        location_name = "TKO Mr. Sandman"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Mr. Sandman"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif tko_logic or ko_logic:
+                    location_name = "Defeat Mr. Sandman"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
-                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
+                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
 
             #Super Macho Man
             location_id = None
+            location_name = None
             if opponent_1 == MACHO[0] and opponent_2 == MACHO[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[29]
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[30]
+                if goal > 1:
+                    if tko_ko_on:
+                        if tko_logic:
+                            location_name = "TKO Super Macho Man"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                        elif ko_logic:
+                            location_name = "KO Super Macho Man"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif tko_logic or ko_logic:
+                        location_name = "Defeat Super Macho Man"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                else:
+                    if goal == 0:
+                        if tko_logic or ko_logic:
+                            location_name = "Defeat Super Macho Man"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif goal == 1:
+                        if ko_logic:
+                            location_name = "KO Super Macho Man"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
-                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
+                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
+                if goal <= 1:
+                    if location_id == macho_goals[goal] and not ctx.finished_game:
+                        await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
+                        ctx.finished_game = True
+
 
             #Mike Tyson
             location_id = None
+            location_name = None
             if opponent_1 == TYSON[0] and opponent_2 == TYSON[1]:
-                if knockdown == OPPONENT_KNOCKED_DOWN and opponent_knockdown_count == TKO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[31]
-                    if not ctx.finished_game:
+                if goal == 2:
+                    if tko_logic or ko_logic:
+                        location_name = "Defeat Mike Tyson"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif goal == 3:
+                    if ko_logic:
+                        location_name = "KO Mike Tyson"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif goal == 4:
+                    if decision_logic_maker(TYSON):
+                        location_name = "Mike Tyson Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if location_id is not None and location_id not in ctx.checked_locations:
+                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
+                if goal <= 1:
+                    if location_id == tyson_goals[goal] and not ctx.finished_game:
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
                         ctx.finished_game = True
-                elif knockdown == OPPONENT_KNOCKED_DOWN and down_count == KO:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[32]
-                elif round == DECISION and score_thousand >= 5:
-                    location_id = list(LOCATION_NAME_TO_ID.values())[33]
-                if location_id is not None and location_id not in ctx.checked_locations:
-                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
-                    if location_id == goals.values()[ctx.slot_data["goal"]] and not ctx.finished_game:
-                        await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
 
         # Item Checks
         if not match == 19: # Hopefully prevents visual glitch on the Bull DEMO fight that can sometimes freeze the game.
@@ -577,21 +718,47 @@ class MTPOClient(BizHawkClient):
 
 
         # Check for match changing. Could be updated to include losses.
+        # TODO: Includes losses and round changes as well.
         if self.previous_match is None:
             self.previous_match = match
-        elif match != self.previous_match:
+            self.match_changed = False
+        elif match > self.previous_match:
             if match != 19 and self.previous_match != 19:
                 self.match_changed = True
-            self.previous_match = match
+        self.previous_match = match
 
-        if self.stars_unlocked and self.stars_pending > 0:
-            if self.match_changed:
+        if self.previous_round is None:
+            self.previous_match = round
+            self.round_changed = False
+        elif round > self.previous_round:
+            if round != 4 and self.previous_match != 3 and round != 0 and match != 19:
+                self.round_changed = True
+        self.previous_round = round
+
+        if self.previous_losses is None:
+            self.previous_losses = losing
+            self.losses_changed = False
+        elif losing != self.previous_losses:
+            if losing != 0:
+                self.losses_changed = True
+        self.previous_losses = losing
+
+        if self.stars_unlocked and self.stars_pending > 0: 
+            # logger.info(
+            #     f"""
+            #     {self.match_changed}, match={match}, prev={self.previous_match}
+            #     {self.round_changed}, round={round}, prev={self.previous_round}
+            #     {self.losses_changed}, losses={losing}, prev={self.previous_losses}"""
+            # )
+            if self.match_changed or self.round_changed or self.losses_changed:
                 self.star_can_send = True
+            else:
+                self.star_can_send = False
             stars_sending = min(3, self.stars_pending)
             if not self.star_queue_logged:
                 logger.info(f"{self.stars_pending} Star(s) queued for next fight!")
                 self.star_queue_logged = True
-            logger.info(f"can_send={self.star_can_send}, fight_status={fight_status}")
+            # logger.info(f"can_send={self.star_can_send}, fight_status={fight_status}")
             if self.star_can_send and fight_status == IN_FIGHT:
                 star_add = [
                     (STARS_HELD, bytes([stars + stars_sending]), "RAM"),
@@ -607,6 +774,9 @@ class MTPOClient(BizHawkClient):
                 }])
                 self.stars_pending -= stars_sending
                 self.star_can_send = False
+                self.previous_match = None
+                self.previous_round = None
+                self.previous_losses = None
                 # logger.info(
                 # f"{self.previous_match}, {match}\ncan_send={self.star_can_send}\n"
                 # f"stars: {self.stars_pending}, data:{ctx.stored_data.get("stars", 0)}"
@@ -621,8 +791,10 @@ class MTPOClient(BizHawkClient):
         #     f"log={self.trap_queue_logged}"
         #     )
         if self.end_round_trap_pending > 0:
-            if self.match_changed:
+            if self.match_changed or self.round_changed or self.losses_changed:
                 self.trap_can_send = True
+            else:
+                self.trap_can_send = False
             if not self.trap_queue_logged:
                 logger.info("Round End Trap queued.")
                 self.trap_queue_logged = True
@@ -642,9 +814,13 @@ class MTPOClient(BizHawkClient):
                 }])
                 self.end_round_trap_pending -= 1
                 self.trap_can_send = False
+                self.previous_match = None
+                self.previous_round = None
+                self.previous_losses = None
                 logger.info("Round End Trap sent.")
         else:
             self.trap_queue_logged = False
+            
         
             
         
@@ -654,50 +830,8 @@ class MTPOClient(BizHawkClient):
             item = ctx.items_received[self.items]
             item_name = ctx.item_names.lookup_in_game(item.item)
 
-            if item_name == "Von Kaiser":
-                self.items += 1
-            elif item_name == "Piston Honda":
-                self.items += 1
-            elif item_name == "Don Flamenco":
-                self.items += 1
-            elif item_name == "King Hippo":
-                self.items += 1
-            elif item_name == "Great Tiger":
-                self.items += 1
-            elif item_name == "Bald Bull":
-                self.items += 1
-            elif item_name == "Piston Honda 2":
-                self.items += 1
-            elif item_name == "Soda Popinski":
-                self.items += 1
-            elif item_name == "Bald Bull 2":
-                self.items += 1
-            elif item_name == "Don Flamenco 2":
-                self.items += 1
-            elif item_name == "Mr. Sandman":
-                self.items += 1
-            elif item_name == "Super Macho Man":
-                self.items += 1
-            elif item_name == "Mike Tyson":
-                self.items += 1
-            elif item_name == "Star Punch Unlock":
-                self.items += 1
-            elif item_name == "Progressive Round":
-                self.items += 1
-            elif item_name == "Heal in Between Rounds":
-                self.items += 1
-            elif item_name == "Busy Signal Code":
-                self.items += 1
-            elif item_name == "Credits Code":
-                self.items += 1
-            elif item_name == "End Round Trap":
-                self.items += 1
-            elif item_name == "Star":
-                 self.items += 1
-            elif item_name == "End Round Trap":
+            if item_name is not None:
                 self.items += 1
 
         if writes:
             await write(ctx.bizhawk_ctx, writes)
-        
-        

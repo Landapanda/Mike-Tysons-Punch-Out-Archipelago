@@ -26,15 +26,12 @@ def create_all_regions(world: MTPOWorld) -> None:
     don_2 = Region("Don2", world.player, world.multiworld)
     sandman = Region("Sandman", world.player, world.multiworld)
     macho = Region("Macho", world.player, world.multiworld)
-    tyson = Region("Tyson", world.player, world.multiworld)
+    
+    regions = [joe, kaiser, honda_1, don_1, hippo, tiger, bull_1, honda_2, soda, bull_2, don_2, sandman, macho]
 
-    regions = [joe, kaiser, honda_1, don_1, hippo, tiger, bull_1, honda_2, soda, bull_2, don_2, sandman, macho, tyson]
-
-    # Some regions may only exist if the player enables certain options.
-    # In our case, the Hammer locks the top middle chest in its own room if the hammer option is enabled.
-    # if world.options.hammer:
-    #     top_middle_room = Region("Top Middle Room", world.player, world.multiworld)
-    #     regions.append(top_middle_room)
+    if world.options.goal.value > 1:
+        tyson = Region("Tyson", world.player, world.multiworld)
+        regions.append(tyson)
 
     world.multiworld.regions += regions
 
@@ -53,7 +50,8 @@ def connect_regions(world: MTPOWorld) -> None:
     don_2 = world.get_region("Don2")
     sandman = world.get_region("Sandman")
     macho = world.get_region("Macho")
-    tyson = world.get_region("Tyson")
+    if world.options.goal.value > 1:
+        tyson = world.get_region("Tyson")
 
     joe_to_kaiser = Entrance(world.player, "Glass Joe to Von Kaiser", parent=joe)
     joe.exits.append(joe_to_kaiser)
@@ -91,8 +89,9 @@ def connect_regions(world: MTPOWorld) -> None:
     sandman_to_macho = Entrance(world.player, "Mr. Sandman to Super Macho Man", parent=sandman)
     sandman.exits.append(sandman_to_macho)
 
-    macho_to_tyson = Entrance(world.player, "Super Macho Man to Mike Tyson", parent=macho)
-    macho.exits.append(macho_to_tyson)
+    if world.options.goal.value > 1:
+        macho_to_tyson = Entrance(world.player, "Super Macho Man to Mike Tyson", parent=macho)
+        macho.exits.append(macho_to_tyson)
 
     joe_to_kaiser.connect(kaiser)
     kaiser_to_honda.connect(honda_1)
@@ -106,7 +105,8 @@ def connect_regions(world: MTPOWorld) -> None:
     bull_2_to_don_2.connect(don_2)
     don_2_to_sandman.connect(sandman)
     sandman_to_macho.connect(macho)
-    macho_to_tyson.connect(tyson)
+    if world.options.goal.value > 1:
+        macho_to_tyson.connect(tyson)
 
     # An even easier way is to use the region.connect helper.
     # overworld.connect(right_room, "Overworld to Right Room")

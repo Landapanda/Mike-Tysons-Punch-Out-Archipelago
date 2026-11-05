@@ -94,114 +94,108 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     have_stars: Rule = Has("Star Punch Unlock")
     have_heal: Rule = Has("Heal in Between Rounds")
 
-    goal_tko = OptionFilter(Goal, 0)
-    goal_ko = OptionFilter(Goal, 1)
-    goal_decision = OptionFilter(Goal, 2)
+    tko_ko_on = world.options.tko_ko.value
+    decision_on = world.options.decision.value
 
-    # Next, we'll check whether hard mode has been chosen in the player options.
-    # if world.options.hard_mode:
-        # We'll make the condition for "Has a Shield or a Health Upgrade".
-        # We can chain two "Has" conditions together with the | operator to make "Has Shield or has Health Upgrade".
-        # can_withstand_a_hit = Has("Shield") | Has("Health Upgrade")
-
-        # Now, we chain this rule to our Sword rule.
-        # Since we want both conditions to be true, in this case, we have to chain them in an "and" way.
-        # For this, we can use the & operator.
-        # can_defeat_basic_enemy = can_defeat_basic_enemy & can_withstand_a_hit
-
-    joe_decision = world.get_location("Glass Joe Decision")
-    world.set_rule(joe_decision, can_decision)
-
-    kaiser_tko = world.get_location("TKO Von Kaiser")
-    world.set_rule(kaiser_tko, have_kaiser)
-    kaiser_ko = world.get_location("KO Von Kaiser")
-    world.set_rule(kaiser_ko, have_kaiser & have_round_2)
-    kaiser_decision = world.get_location("Von Kaiser Decision")
-    world.set_rule(kaiser_decision, have_kaiser & can_decision & have_stars)
-
-    honda_1_tko = world.get_location("TKO Piston Honda")
-    world.set_rule(honda_1_tko, have_honda_1)
-    honda_1_ko = world.get_location("KO Piston Honda")
-    world.set_rule(honda_1_ko, have_honda_1 & have_round_2)
+    if tko_ko_on:
+        kaiser_tko = world.get_location("TKO Von Kaiser")
+        world.set_rule(kaiser_tko, have_kaiser)
+        kaiser_ko = world.get_location("KO Von Kaiser")
+        world.set_rule(kaiser_ko, have_kaiser & have_round_2)
+        honda_1_tko = world.get_location("TKO Piston Honda")
+        world.set_rule(honda_1_tko, have_honda_1)
+        honda_1_ko = world.get_location("KO Piston Honda")
+        world.set_rule(honda_1_ko, have_honda_1 & have_round_2)
+        don_1_tko = world.get_location("TKO Don Flamenco")
+        world.set_rule(don_1_tko, have_don_1)
+        don_1_ko = world.get_location("KO Don Flamenco")
+        world.set_rule(don_1_ko, have_don_1)
+        tiger_tko = world.get_location("TKO Great Tiger")
+        world.set_rule(tiger_tko, have_tiger)
+        honda_2_tko = world.get_location("TKO Piston Honda 2")
+        world.set_rule(honda_2_tko, have_honda_2)
+        honda_2_ko = world.get_location("KO Piston Honda 2")
+        world.set_rule(honda_2_ko, have_honda_2)
+        soda_tko = world.get_location("TKO Soda Popinski")
+        world.set_rule(soda_tko, have_soda)
+        soda_ko = world.get_location("KO Soda Popinski")
+        world.set_rule(soda_ko, have_soda & can_decision)
+        bull_2_tko = world.get_location("TKO Bald Bull 2")
+        world.set_rule(bull_2_tko, have_bull_2 & have_stars)
+        bull_2_ko = world.get_location("KO Bald Bull 2")
+        world.set_rule(bull_2_ko, have_bull_2 & can_decision)
+        don_2_tko = world.get_location("TKO Don Flamenco 2")
+        world.set_rule(don_2_tko, have_don_2)
+        don_2_ko = world.get_location("KO Don Flamenco 2")
+        world.set_rule(don_2_ko, have_don_2 & can_decision)
+        sandman_tko = world.get_location("TKO Mr. Sandman")
+        world.set_rule(sandman_tko, have_sandman)
+        sandman_ko = world.get_location("KO Mr. Sandman")
+        world.set_rule(sandman_ko, have_sandman & can_decision)
+        if decision_on:
+            joe_decision = world.get_location("Glass Joe Decision")
+            world.set_rule(joe_decision, can_decision)
+            kaiser_decision = world.get_location("Von Kaiser Decision")
+            world.set_rule(kaiser_decision, have_kaiser & can_decision & have_stars)
+            don_1_decision = world.get_location("Don Flamenco Decision")
+            world.set_rule(don_1_decision, have_don_1 & can_decision & have_stars)
+            tiger_decision = world.get_location("Great Tiger Decision")
+            world.set_rule(tiger_decision, have_tiger & can_decision & have_stars)
+            honda_2_decision = world.get_location("Piston Honda 2 Decision")
+            world.set_rule(honda_2_decision, have_honda_2 & can_decision)
+            soda_decision = world.get_location("Soda Popinski Decision")
+            world.set_rule(soda_decision, have_soda & can_decision & have_stars)
+            bull_2_decision = world.get_location("Bald Bull 2 Decision")
+            world.set_rule(bull_2_decision, have_bull_2 & can_decision & have_stars)
+            don_2_decision = world.get_location("Don Flamenco 2 Decision")
+            world.set_rule(don_2_decision, have_don_2 & can_decision & have_stars) # Might not need stars? It's only 5k
+    else:
+        kaiser_defeat = world.get_location("Defeat Von Kaiser")
+        world.set_rule(kaiser_defeat, have_kaiser)
+        honda_1_defeat = world.get_location("Defeat Piston Honda")
+        world.set_rule(honda_1_defeat, have_honda_1)
+        don_1_defeat = world.get_location("Defeat Don Flamenco")
+        world.set_rule(don_1_defeat, have_don_1)
+        tiger_defeat = world.get_location("Defeat Great Tiger")
+        world.set_rule(tiger_defeat, have_tiger)
+        honda_2_defeat = world.get_location("Defeat Piston Honda 2")
+        world.set_rule(honda_2_defeat, have_honda_2)
+        soda_defeat = world.get_location("Defeat Soda Popinski")
+        world.set_rule(soda_defeat, have_soda)
+        bull_2_defeat = world.get_location("Defeat Bald Bull 2")
+        world.set_rule(bull_2_defeat, have_bull_2 & (can_decision | have_stars))
+        don_2_defeat = world.get_location("Defeat Don Flamenco 2")
+        world.set_rule(don_2_defeat, have_don_2)
+        sandman_defeat = world.get_location("Defeat Mr. Sandman")
+        world.set_rule(sandman_defeat, have_sandman)
     
-    don_1_tko = world.get_location("TKO Don Flamenco")
-    world.set_rule(don_1_tko, have_don_1)
-    don_1_ko = world.get_location("KO Don Flamenco")
-    world.set_rule(don_1_ko, have_don_1)
-    don_1_decision = world.get_location("Don Flamenco Decision")
-    world.set_rule(don_1_decision, have_don_1 & can_decision & have_stars)
+    hippo_defeat = world.get_location("Defeat King Hippo")
+    world.set_rule(hippo_defeat, have_hippo)
 
-    hippo_ko = world.get_location("KO King Hippo")
-    world.set_rule(hippo_ko, have_hippo)
+    bull_1_defeat = world.get_location("Defeat Bald Bull")
+    world.set_rule(bull_1_defeat, have_bull_1)
 
-    tiger_tko = world.get_location("TKO Great Tiger")
-    world.set_rule(tiger_tko, have_tiger)
-    tiger_decision = world.get_location("Great Tiger Decision")
-    world.set_rule(tiger_decision, have_tiger & can_decision & have_stars)
+    goal = world.options.goal.value
 
-    bull_1_tko = world.get_location("TKO Bald Bull")
-    world.set_rule(bull_1_tko, have_bull_1)
-
-    honda_2_tko = world.get_location("TKO Piston Honda 2")
-    world.set_rule(honda_2_tko, have_honda_2)
-    honda_2_ko = world.get_location("KO Piston Honda 2")
-    world.set_rule(honda_2_ko, have_honda_2)
-    honda_2_decision = world.get_location("Piston Honda 2 Decision")
-    world.set_rule(honda_2_decision, have_honda_2 & can_decision)
-
-    soda_tko = world.get_location("TKO Soda Popinski")
-    world.set_rule(soda_tko, have_soda)
-    soda_ko = world.get_location("KO Soda Popinski")
-    world.set_rule(soda_ko, have_soda & can_decision)
-    soda_decision = world.get_location("Soda Popinski Decision")
-    world.set_rule(soda_decision, have_soda & can_decision & have_stars)
-
-    bull_2_tko = world.get_location("TKO Bald Bull 2")
-    world.set_rule(bull_2_tko, have_bull_2 & have_stars)
-    bull_2_ko = world.get_location("KO Bald Bull 2")
-    world.set_rule(bull_2_ko, have_bull_2 & can_decision)
-    bull_2_decision = world.get_location("Bald Bull 2 Decision")
-    world.set_rule(bull_2_decision, have_bull_2 & can_decision & have_stars)
-
-    don_2_tko = world.get_location("TKO Don Flamenco 2")
-    world.set_rule(don_2_tko, have_don_2)
-    don_2_ko = world.get_location("KO Don Flamenco 2")
-    world.set_rule(don_2_ko, have_don_2 & can_decision)
-    don_2_decision = world.get_location("Don Flamenco 2 Decision")
-    world.set_rule(don_2_decision, have_don_2 & can_decision & have_stars)
-
-    sandman_tko = world.get_location("TKO Mr. Sandman")
-    world.set_rule(sandman_tko, have_sandman)
-    sandman_ko = world.get_location("KO Mr. Sandman")
-    world.set_rule(sandman_ko, have_sandman & can_decision)
-
-    macho_tko = world.get_location("TKO Super Macho Man")
-    world.set_rule(macho_tko, have_macho)
-    macho_ko = world.get_location("KO Super Macho Man")
-    world.set_rule(macho_ko, have_macho & have_round_2)
-
-    if world.options.goal.value == 0:
-        tyson_tko = world.get_location("TKO Mike Tyson")
-        world.set_rule(tyson_tko, have_tyson)
-    elif world.options.goal.value == 1:
+    if goal == 0:
+        macho_tko = world.get_location("TKO Super Macho Man")
+        world.set_rule(macho_tko, have_macho)
+    elif goal == 1:
+        macho_ko = world.get_location("KO Super Macho Man")
+        world.set_rule(macho_ko, have_macho & have_round_2)
+    elif goal == 2:
+        tyson_defeat = world.get_location("Defeat Mike Tyson")
+        world.set_rule(tyson_defeat, have_tyson)
+    elif goal == 3:
         tyson_ko = world.get_location("KO Mike Tyson")
         world.set_rule(tyson_ko, have_tyson & can_decision)
     else:
         tyson_decision = world.get_location("Mike Tyson Decision")
         world.set_rule(tyson_decision, have_tyson & can_decision)
 
-    # Previously, we used an "if world.options.hard_mode" condition to check if we should apply the extra requirement.
-    # However, if you're comfortable with boolean logic, there is another way.
-    # OptionFilter is a rule component which isn't a "Rule" on its own, but when used in a boolean expression with
-    # rules, it acts like True if the option has the specified value, and acts like False otherwise.
-    # hard_mode_is_off = OptionFilter(HardMode, False)
-
-    # So with this option-checking rule component in hand, we can write our boss condition like this:
-    # can_defeat_final_boss = has_sword_and_shield & (hard_mode_is_off | has_both_health_upgrades)
-    # If you're not as comfortable with boolean logic, it might be somewhat confusing why this is correct.
-    # There is nothing wrong with using "if" conditions to check for options, if you find that easier to understand.
-
-
 
 def set_completion_condition(world: MTPOWorld) -> None:
-    world.set_completion_rule(Has("Mike Tyson"))
+    if world.options.goal.value > 1:
+        world.set_completion_rule(Has("Mike Tyson"))
+    else:
+        world.set_completion_rule(Has("Super Macho Man"))
