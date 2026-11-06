@@ -31,14 +31,69 @@ SCORE_10000 = 0x03E9 #Ten-thousandths place
 SCORE_1000 = 0x03EA # Thousandths place
 
 # ROM
-busy_signal_rom = [0x0EDAC, 0x0EDAD, 0x0EDAE, 0x0EDAF, 0x0EDB0, 0x0EDB1, 0x0EDB2, 0x0EDB3, 0x0EDB4, 0x0EDB5]
+busy_signal_rom = []
+busy_signal_2_rom = []
+busy_signal_3_rom = []
+credits_rom = []
+for i in range(0x0EDAC, 0x0EDB5+1):
+    busy_signal_rom.append(i)
+for i in range(0x0EDA2, 0xEDAB+1):
+    busy_signal_2_rom.append(i)
+for i in range(0x0EDB6, 0x0EDBF+1):
+    busy_signal_3_rom.append(i)
+for i in range(0x0EDCA, 0x0EDD3+1):
+    credits_rom.append(i)
 busy_signal_code = [8, 0, 0, 4, 2, 2, 2, 6, 0, 2]
-busy_signal_2_rom = [0x0EDA2, 0x0EDA3, 0x0EDA4, 0x0EDA5, 0x0EDA6, 0x0EDA7, 0x0EDA8, 0x0EDA9, 0x0EDAA, 0xEDAB]
 busy_signal_2_code = [0, 7, 5, 5, 4, 1, 6, 1, 1, 3]
-busy_signal_3_rom = [0x0EDB6, 0x0EDB7, 0x0EDB8, 0x0EDB9, 0x0EDBA, 0x0EDBB, 0x0EDBC, 0x0EDBD, 0x0EDBE, 0x0EDBF]
 busy_signal_3_code = [2, 0, 6, 8, 8, 2, 2, 0, 4, 0]
-credits_rom = [0x0EDCA, 0x0EDCB, 0x0EDCC, 0x0EDCD, 0x0EDCE, 0x0EDCF, 0x0EDD0, 0x0EDD1, 0x0EDD2, 0x0EDD3]
 credits_code = [1, 0, 6, 1, 1, 3, 0, 1, 2, 0]
+
+# kaiser_kd4 = []
+# for i in range(0x0532D, 0x05333+1):
+#     kaiser_kd4.append(i)
+# honda_kd4 = []
+# for i in range(0x0BC4F, 0x0BC55+1):
+#     honda_kd4.append(i)
+# soda_kd5 = []
+# for i in range():
+#     soda_kd5.append(i)
+sandman_kd6 = []
+for i in range(0x07DB2, 0x7DB8+1):
+    sandman_kd6.append(i)
+
+tiger_hp_kd = {
+    "kd3": [],
+    "kd4": [],
+    "kd5": [],
+    "kd6": []
+} 
+
+bull_hp_kd = {
+    "kd3": [],
+    "kd4": [],
+    "kd5": [],
+    "kd6": []
+} 
+
+for i in range(0x0548C, 0x05492+1):
+    tiger_hp_kd["kd3"].append(i)
+for i in range(0x05494, 0x0549A+1):
+    tiger_hp_kd["kd4"].append(i)
+for i in range(0x0549C, 0x054A2+1):
+    tiger_hp_kd["kd5"].append(i)
+for i in range(0x054A4, 0x054AA+1):
+    tiger_hp_kd["kd6"].append(i)
+
+for i in range(0x07A10, 0x07A16+1):
+    bull_hp_kd["kd3"].append(i)
+for i in range(0x07A18, 0x07A1E+1):
+    bull_hp_kd["kd4"].append(i)
+for i in range(0x07A20, 0x07A26+1):
+    bull_hp_kd["kd5"].append(i)
+for i in range(0x07A28, 0x07A2E+1):
+    bull_hp_kd["kd6"].append(i)
+
+
 
 IN_FIGHT = 255 #0xFF
 OPPONENT_KNOCKED_DOWN = 1
@@ -63,8 +118,13 @@ MACHO = (4, 48, None)
 TYSON = (5, 64, 5)
 DEMO = (3, 0, None)
 
-macho_goals = [get_location_names_with_ids(["Defeat Super Macho Man"]).values(), get_location_names_with_ids(["KO Super Macho Man"]).values()]
-tyson_goals = [get_location_names_with_ids(["Defeat Mike Tyson"]).values(), get_location_names_with_ids(["KO Mike Tyson"]).values(), get_location_names_with_ids(["Mike Tyson Decision"]).values()]
+macho_goals = [
+    get_location_names_with_ids(["Defeat Super Macho Man"]).values(), get_location_names_with_ids(["KO Super Macho Man"]).values()
+]
+tyson_goals = [
+    get_location_names_with_ids(["Defeat Mike Tyson"]).values(), get_location_names_with_ids(["KO Mike Tyson"]).values(), 
+    get_location_names_with_ids(["Mike Tyson Decision"]).values()
+]
 
 logger = logging.getLogger("Client")
 
@@ -134,7 +194,6 @@ class MTPOClient(BizHawkClient):
                 ctx.tags = {"AP"}
                 ctx.set_notify("stars")
                 ctx.set_notify("end_rounds")
-                # logger.info("WORKING!!")
                 return True
             else:
                 return False
@@ -144,9 +203,7 @@ class MTPOClient(BizHawkClient):
     async def on_package(self, ctx: "BizHawkClientContext", cmd, args):
        if cmd == "Retrieved":
         stars = ctx.stored_data.get("stars", 0)
-        logger.info(f"Stars already sent: {stars}")
         end_rounds = ctx.stored_data.get("end_rounds", 0)
-        logger.info(f"Rounds ended by traps: {end_rounds}")
 
 
     def check_unlocks(self, ctx: "BizHawkClientContext") -> None:
@@ -233,8 +290,13 @@ class MTPOClient(BizHawkClient):
             return
 
         goal = ctx.slot_data["goal"]
-        tko_ko_on = ctx.slot_data["tko_ko"]
-        decision_on = ctx.slot_data["decision"]
+        decision_on: bool = ctx.slot_data["decision"]
+        force_ko: bool = ctx.slot_data["force_ko"]
+        add_ko: bool = ctx.slot_data["add_ko"]
+        if add_ko:
+            tiger_ko_con = ctx.slot_data["tiger_ko"]
+            bull_ko_con = ctx.slot_data["bull_ko"]
+
 
         reads = await read(ctx.bizhawk_ctx, [
             (CURRENT_MATCH, 1, "RAM"),
@@ -282,26 +344,70 @@ class MTPOClient(BizHawkClient):
         # f"Count={down_count}, Fight={fight_status},"
         # )
 
+        if force_ko:
+            for i in sandman_kd6:
+                writes.append(
+                    (i, bytes([0]), "PRG ROM")
+                )
+
+        if add_ko:
+            if tiger_ko_con == 3:
+                for i in tiger_hp_kd["kd3"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            elif tiger_ko_con == 4:
+                for i in tiger_hp_kd["kd4"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            elif tiger_ko_con == 5:
+                for i in tiger_hp_kd["kd5"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            else:
+                for i in tiger_hp_kd["kd6"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            if bull_ko_con == 3:
+                for i in bull_hp_kd["kd3"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            elif bull_ko_con == 4:
+                for i in bull_hp_kd["kd4"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            elif bull_ko_con == 5:
+                for i in bull_hp_kd["kd5"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+            else:
+                for i in bull_hp_kd["kd6"]:
+                    writes.append(
+                        (i, bytes([0]), "PRG ROM")
+                    )
+
         # Location Checks
         if fight_status == IN_FIGHT:
             #Glass Joe
             location_id = None
             location_name = None
             if opponent_1 == JOE[0] and opponent_2 == JOE[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Glass Joe"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Glass Joe"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(JOE):
-                            location_name = "Glass Joe Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Glass Joe"
+                if tko_logic:
+                    location_name = "TKO Glass Joe"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Glass Joe"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(JOE):
+                        location_name = "Glass Joe Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
                 
@@ -309,20 +415,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == KAISER[0] and opponent_2 == KAISER[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Von Kaiser"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Von Kaiser"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(KAISER):
-                            location_name = "Von Kaiser Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Von Kaiser"
+                if tko_logic:
+                    location_name = "TKO Von Kaiser"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Von Kaiser"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(KAISER):
+                        location_name = "Von Kaiser Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -330,15 +432,11 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == HONDA_1[0] and opponent_2 == HONDA_1[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Piston Honda"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Piston Honda"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Piston Honda"
+                if tko_logic:
+                    location_name = "TKO Piston Honda"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Piston Honda"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
@@ -347,20 +445,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == DON_1[0] and opponent_2 == DON_1[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Don Flamenco"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Don Flamenco"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(DON_1):
-                            location_name = "Don Flamenco Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Don Flamenco"
+                if tko_logic:
+                    location_name = "TKO Don Flamenco"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Don Flamenco"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(DON_1):
+                        location_name = "Don Flamenco Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -369,7 +463,7 @@ class MTPOClient(BizHawkClient):
             location_name = None
             if opponent_1 == HIPPO[0] and opponent_2 == HIPPO[1]:
                 if ko_logic:
-                    location_name = "Defeat King Hippo"
+                    location_name = "KO King Hippo"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
@@ -378,17 +472,17 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == TIGER[0] and opponent_2 == TIGER[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Great Tiger"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(TIGER):
-                            location_name = "Great Tiger Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic:
-                    location_name = "Defeat Great Tiger"
+                if tko_logic:
+                    location_name = "TKO Great Tiger"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if add_ko:
+                    if ko_logic:
+                        location_name = "KO Great Tiger"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(TIGER):
+                        location_name = "Great Tiger Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -397,8 +491,12 @@ class MTPOClient(BizHawkClient):
             location_name = None
             if opponent_1 == BULL_1[0] and opponent_2 == BULL_1[1]:
                 if tko_logic:
-                    location_name = "Defeat Bald Bull"
+                    location_name = "TKO Bald Bull"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if add_ko:
+                    if ko_logic:
+                        location_name = "KO Bald Bull"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -406,20 +504,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == HONDA_2[0] and opponent_2 == HONDA_2[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Piston Honda 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Piston Honda 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(HONDA_2):
-                            location_name = "Piston Honda 2 Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Piston Honda 2"
+                if tko_logic:
+                    location_name = "TKO Piston Honda 2"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Piston Honda 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(HONDA_2):
+                        location_name = "Piston Honda 2 Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -427,20 +521,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == SODA[0] and opponent_2 == SODA[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Soda Popinski"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Soda Popinski"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(SODA):
-                            location_name = "Soda Popinski Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Soda Popinski"
+                if tko_logic:
+                    location_name = "TKO Soda Popinski"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Soda Popinski"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(SODA):
+                        location_name = "Soda Popinski Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -448,20 +538,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == BULL_2[0] and opponent_2 == BULL_2[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Bald Bull 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Bald Bull 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(BULL_2):
-                            location_name = "Bald Bull 2 Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Bald Bull 2"
+                if tko_logic:
+                    location_name = "TKO Bald Bull 2"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Bald Bull 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(BULL_2):
+                        location_name = "Bald Bull 2 Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
 
@@ -469,20 +555,16 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == DON_2[0] and opponent_2 == DON_2[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Don Flamenco 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Don Flamenco 2"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    if decision_on:
-                        if decision_logic_maker(DON_2):
-                            location_name = "Don Flamenco 2 Decision"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Don Flamenco 2"
+                if tko_logic:
+                    location_name = "TKO Don Flamenco 2"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Don Flamenco 2"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on:
+                    if decision_logic_maker(DON_2):
+                        location_name = "Don Flamenco 2 Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])  
 
@@ -490,15 +572,11 @@ class MTPOClient(BizHawkClient):
             location_id = None
             location_name = None
             if opponent_1 == SANDMAN[0] and opponent_2 == SANDMAN[1]:
-                if tko_ko_on:
-                    if tko_logic:
-                        location_name = "TKO Mr. Sandman"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif ko_logic:
-                        location_name = "KO Mr. Sandman"
-                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif tko_logic or ko_logic:
-                    location_name = "Defeat Mr. Sandman"
+                if tko_logic:
+                    location_name = "TKO Mr. Sandman"
+                    location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                elif ko_logic:
+                    location_name = "KO Mr. Sandman"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
@@ -508,15 +586,11 @@ class MTPOClient(BizHawkClient):
             location_name = None
             if opponent_1 == MACHO[0] and opponent_2 == MACHO[1]:
                 if goal > 1:
-                    if tko_ko_on:
-                        if tko_logic:
-                            location_name = "TKO Super Macho Man"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                        elif ko_logic:
-                            location_name = "KO Super Macho Man"
-                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                    elif tko_logic or ko_logic:
-                        location_name = "Defeat Super Macho Man"
+                    if tko_logic:
+                        location_name = "TKO Super Macho Man"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif ko_logic:
+                        location_name = "KO Super Macho Man"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 else:
                     if goal == 0:

@@ -39,34 +39,76 @@ class TrapChance(Range):
     default = 0
 
 
-class TKO_KOToggle(Toggle):
-    """
-    Enables checks for getting TKOs and KOs on every fight as opposed to a single check for winning the fight.
-    """
+# class TKO_KOToggle(Toggle):
+#     """
+#     Enables checks for getting TKOs and KOs on every fight as opposed to a single check for winning the fight.
+#     """
 
-    display_name = "TKO/KO Checks"
+#     display_name = "TKO/KO Checks"
 
 class DecisionToggle(Toggle):
     """
-    **This option will only work if TKO/KO Checks are enabled.**
-    Enable winning via decision as checks.
+    Enable winning via decision as checks for all fights with possible decisions.
     """
 
     display_name = "Decision Checks"
 
+class ForceKO(Toggle):
+    """
+    Remove the RNG requirement from Mr. Sandman's KO.
+    """
+
+    display_name = "Force KOs"
+
+class AddKOs(Toggle):
+    """
+    Add KOs to the fights that don't have them. Create the conditions in Custom Options.
+    As of now, it will make the KO guaranteed once you reach the knockdown condition.
+    """
+
+    display_name = "Add KOs"
+
+class TigerKO(Range):
+    """
+    How many knockdowns are required for Great Tiger's KO.
+    """
+
+    display_name = "Tiger KO Condition"
+
+    range_start = 3
+    range_end = 6
+    default = 4
+
+class BullKO(Range):
+    """
+    How many knockdowns are required for Bald Bull 1's KO.
+    """
+
+    display_name = "Bald Bull 1 KO Condition"
+
+    range_start = 3
+    range_end = 6
+    default = 6
 
 @dataclass
 class MTPOOptions(PerGameCommonOptions):
     goal: Goal
-    tko_ko: TKO_KOToggle
     decision: DecisionToggle
+    force_ko: ForceKO
+    add_ko: AddKOs
     trap_chance: TrapChance
+    tiger_ko: TigerKO
+    bull_ko: BullKO
 
 
 # If we want to group our options by similar type, we can do so as well. This looks nice on the website.
 option_groups = [
     OptionGroup(
-        "Gameplay Options",
-        [Goal, TKO_KOToggle, DecisionToggle, TrapChance],
+        "Game Options",
+        [Goal, DecisionToggle, ForceKO, AddKOs, TrapChance],
     ),
+    OptionGroup(
+        "Custom Options",
+        [TigerKO, BullKO]
+    )
 ]

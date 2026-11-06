@@ -4,58 +4,48 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import ItemClassification, Location
 
-from . import items, options
-
 if TYPE_CHECKING:
     from .world import MTPOWorld
 
 LOCATION_NAME_TO_ID = {
-    "Defeat Glass Joe": 1,
-    "TKO Glass Joe": 2,
-    "KO Glass Joe": 3,
-    "Glass Joe Decision": 4,
-    "Defeat Von Kaiser": 5,
-    "TKO Von Kaiser": 6,
-    "KO Von Kaiser": 7,
-    "Von Kaiser Decision": 8,
-    "Defeat Piston Honda": 9,
-    "TKO Piston Honda": 10,
-    "KO Piston Honda": 11,
-    "Defeat Don Flamenco": 12,
-    "TKO Don Flamenco": 13,
-    "KO Don Flamenco": 14,
-    "Don Flamenco Decision": 15,
-    "Defeat King Hippo": 16,
-    "Defeat Great Tiger": 17,
-    "TKO Great Tiger": 18,
-    "Great Tiger Decision": 19,
-    "Defeat Bald Bull": 20,
-    "Defeat Piston Honda 2": 21,
-    "TKO Piston Honda 2": 22,
-    "KO Piston Honda 2": 23,
-    "Piston Honda 2 Decision": 24,
-    "Defeat Soda Popinski": 25,
-    "TKO Soda Popinski": 26,
-    "KO Soda Popinski": 27,
-    "Soda Popinski Decision": 28,
-    "Defeat Bald Bull 2": 29,
-    "TKO Bald Bull 2": 30,
-    "KO Bald Bull 2": 31,
-    "Bald Bull 2 Decision": 32,
-    "Defeat Don Flamenco 2": 33,
-    "TKO Don Flamenco 2": 34,
-    "KO Don Flamenco 2": 35,
-    "Don Flamenco 2 Decision": 36,
-    "Defeat Mr. Sandman": 37,
-    "TKO Mr. Sandman": 38,
-    "KO Mr. Sandman": 39,
-    "Defeat Super Macho Man": 40,
-    "TKO Super Macho Man": 41,
-    "KO Super Macho Man": 42,
-    "Defeat Mike Tyson": 43,
-    "TKO Mike Tyson": 44,
-    "KO Mike Tyson": 45,
-    "Mike Tyson Decision": 46
+    "TKO Glass Joe": 1,
+    "KO Glass Joe": 2,
+    "Glass Joe Decision": 3,
+    "TKO Von Kaiser": 4,
+    "KO Von Kaiser": 5,
+    "Von Kaiser Decision": 6,
+    "TKO Piston Honda": 7,
+    "KO Piston Honda": 8,
+    "TKO Don Flamenco": 9,
+    "KO Don Flamenco": 10,
+    "Don Flamenco Decision": 11,
+    "KO King Hippo": 12,
+    "TKO Great Tiger": 13,
+    "KO Great Tiger": 14,
+    "Great Tiger Decision": 15,
+    "TKO Bald Bull": 16,
+    "KO Bald Bull": 17,
+    "TKO Piston Honda 2": 18,
+    "KO Piston Honda 2": 19,
+    "Piston Honda 2 Decision": 20,
+    "TKO Soda Popinski": 21,
+    "KO Soda Popinski": 22,
+    "Soda Popinski Decision": 23,
+    "TKO Bald Bull 2": 24,
+    "KO Bald Bull 2": 25,
+    "Bald Bull 2 Decision": 26,
+    "TKO Don Flamenco 2": 27,
+    "KO Don Flamenco 2": 28,
+    "Don Flamenco 2 Decision": 29,
+    "TKO Mr. Sandman": 30,
+    "KO Mr. Sandman": 31,
+    "Defeat Super Macho Man": 32,
+    "TKO Super Macho Man": 33,
+    "KO Super Macho Man": 34,
+    "Defeat Mike Tyson": 35,
+    "TKO Mike Tyson": 36,
+    "KO Mike Tyson": 37,
+    "Mike Tyson Decision": 38,
 }
 
 class MTPOLocation(Location):
@@ -92,58 +82,58 @@ def create_regular_locations(world: MTPOWorld) -> None:
     macho = world.get_region("Macho")
 
     goal = world.options.goal.value
-    tko_ko_on = world.options.tko_ko.value
-    decision_on = world.options.decision.value
+    decision_on: bool = world.options.decision.value
+    add_ko: bool = world.options.add_ko.value 
 
     if goal > 1:
         tyson = world.get_region("Tyson")
 
     joe_locations = get_location_names_with_ids(
-        ["Defeat Glass Joe"]
+        ["TKO Glass Joe", "KO Glass Joe"]
     )
 
     kaiser_locations = get_location_names_with_ids(
-        ["Defeat Von Kaiser"]
+        ["TKO Von Kaiser", "KO Von Kaiser"]
     )
 
     honda_1_locations = get_location_names_with_ids(
-        ["Defeat Piston Honda"]
+        ["TKO Piston Honda", "KO Piston Honda"]
     )
 
     don_1_locations = get_location_names_with_ids(
-        ["Defeat Don Flamenco"]
+        ["TKO Don Flamenco", "KO Don Flamenco"]
     )
 
     hippo_locations = get_location_names_with_ids(
-        ["Defeat King Hippo"]
+        ["KO King Hippo"]
     )
 
     tiger_locations = get_location_names_with_ids(
-        ["Defeat Great Tiger"]
+        ["TKO Great Tiger"]
     )
 
     bull_1_locations = get_location_names_with_ids(
-        ["Defeat Bald Bull"]
+        ["TKO Bald Bull"]
     )
 
     honda_2_locations = get_location_names_with_ids(
-        ["Defeat Piston Honda 2"]
+        ["TKO Piston Honda 2", "KO Piston Honda 2"]
     )
 
     soda_locations = get_location_names_with_ids(
-        ["Defeat Soda Popinski"]
+        ["TKO Soda Popinski", "KO Soda Popinski"]
     )
 
     bull_2_locations = get_location_names_with_ids(
-        ["Defeat Bald Bull 2"]
+        ["TKO Bald Bull 2", "KO Bald Bull 2"]
     )
 
     don_2_locations = get_location_names_with_ids(
-        ["Defeat Don Flamenco 2"]
+        ["TKO Don Flamenco 2", "KO Don Flamenco 2"]
     )
 
     sandman_locations = get_location_names_with_ids(
-        ["Defeat Mr. Sandman"]
+        ["TKO Mr. Sandman", "KO Mr. Sandman"]
     )
 
     # macho_locations = get_location_names_with_ids(
@@ -163,44 +153,31 @@ def create_regular_locations(world: MTPOWorld) -> None:
     elif goal == 1:
         macho_locations.update(get_location_names_with_ids(["KO Super Macho Man"]))
     elif goal == 2:
+        macho_locations.update(get_location_names_with_ids(["TKO Super Macho Man"]))
+        macho_locations.update(get_location_names_with_ids(["KO Super Macho Man"]))
         tyson_locations.update(get_location_names_with_ids(["Defeat Mike Tyson"]))
     elif goal == 3:
+        macho_locations.update(get_location_names_with_ids(["TKO Super Macho Man"]))
+        macho_locations.update(get_location_names_with_ids(["KO Super Macho Man"]))
         tyson_locations.update(get_location_names_with_ids(["KO Mike Tyson"]))
     else:
+        macho_locations.update(get_location_names_with_ids(["TKO Super Macho Man"]))
+        macho_locations.update(get_location_names_with_ids(["KO Super Macho Man"]))
         tyson_locations.update(get_location_names_with_ids(["Mike Tyson Decision"]))
 
-    if tko_ko_on:
-        joe_locations.pop(list(joe_locations.keys())[0])
-        joe_locations.update(get_location_names_with_ids(["TKO Glass Joe", "KO Glass Joe"]))
-        kaiser_locations.pop(list(kaiser_locations.keys())[0])
-        kaiser_locations.update(get_location_names_with_ids(["TKO Von Kaiser", "KO Von Kaiser"]))
-        honda_1_locations.pop(list(honda_1_locations.keys())[0])
-        honda_1_locations.update(get_location_names_with_ids(["TKO Piston Honda", "KO Piston Honda"]))
+    if decision_on:
+        joe_locations.update(get_location_names_with_ids(["Glass Joe Decision"]))
+        kaiser_locations.update(get_location_names_with_ids(["Von Kaiser Decision"]))
+        don_1_locations.update(get_location_names_with_ids(["Don Flamenco Decision"]))
+        tiger_locations.update(get_location_names_with_ids(["Great Tiger Decision"]))
+        honda_2_locations.update(get_location_names_with_ids(["Piston Honda 2 Decision"]))
+        soda_locations.update(get_location_names_with_ids(["Soda Popinski Decision"]))
+        bull_2_locations.update(get_location_names_with_ids(["Bald Bull 2 Decision"]))
+        don_2_locations.update(get_location_names_with_ids(["Don Flamenco 2 Decision"]))
 
-        don_1_locations.pop(list(don_1_locations.keys())[0])
-        don_1_locations.update(get_location_names_with_ids(["TKO Don Flamenco", "KO Don Flamenco"]))
-        tiger_locations.pop(list(tiger_locations.keys())[0])
-        tiger_locations.update(get_location_names_with_ids(["TKO Great Tiger"]))
-
-        honda_2_locations.pop(list(honda_2_locations.keys())[0])
-        honda_2_locations.update(get_location_names_with_ids(["TKO Piston Honda 2", "KO Piston Honda 2"]))
-        soda_locations.pop(list(soda_locations.keys())[0])
-        soda_locations.update(get_location_names_with_ids(["TKO Soda Popinski", "KO Soda Popinski"]))
-        bull_2_locations.pop(list(bull_2_locations.keys())[0])
-        bull_2_locations.update(get_location_names_with_ids(["TKO Bald Bull 2", "KO Bald Bull 2"]))
-        don_2_locations.pop(list(don_2_locations.keys())[0])
-        don_2_locations.update(get_location_names_with_ids(["TKO Don Flamenco 2", "KO Don Flamenco 2"]))
-        sandman_locations.pop(list(sandman_locations.keys())[0])
-        sandman_locations.update(get_location_names_with_ids(["TKO Mr. Sandman", "KO Mr. Sandman"]))
-        if decision_on:
-            joe_locations.update(get_location_names_with_ids(["Glass Joe Decision"]))
-            kaiser_locations.update(get_location_names_with_ids(["Von Kaiser Decision"]))
-            don_1_locations.update(get_location_names_with_ids(["Don Flamenco Decision"]))
-            tiger_locations.update(get_location_names_with_ids(["Great Tiger Decision"]))
-            honda_2_locations.update(get_location_names_with_ids(["Piston Honda 2 Decision"]))
-            soda_locations.update(get_location_names_with_ids(["Soda Popinski Decision"]))
-            bull_2_locations.update(get_location_names_with_ids(["Bald Bull 2 Decision"]))
-            don_2_locations.update(get_location_names_with_ids(["Don Flamenco 2 Decision"]))
+    if add_ko:
+        tiger_locations.update(get_location_names_with_ids(["KO Great Tiger"]))
+        bull_1_locations.update(get_location_names_with_ids(["KO Bald Bull"]))
 
 
     joe.add_locations(joe_locations, MTPOLocation) 
