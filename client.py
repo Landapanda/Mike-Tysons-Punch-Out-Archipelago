@@ -118,12 +118,12 @@ MACHO = (4, 48, None)
 TYSON = (5, 64, 5)
 DEMO = (3, 0, None)
 
-macho_goals = [
-    get_location_names_with_ids(["Defeat Super Macho Man"]).values(), get_location_names_with_ids(["KO Super Macho Man"]).values()
-]
-tyson_goals = [
-    get_location_names_with_ids(["Defeat Mike Tyson"]).values(), get_location_names_with_ids(["KO Mike Tyson"]).values(), 
-    get_location_names_with_ids(["Mike Tyson Decision"]).values()
+goal_ids = [
+    list(get_location_names_with_ids(["Defeat Super Macho Man"]).values())[0], 
+    list(get_location_names_with_ids(["KO Super Macho Man"]).values())[0],
+    list(get_location_names_with_ids(["Defeat Mike Tyson"]).values())[0], 
+    list(get_location_names_with_ids(["KO Mike Tyson"]).values())[0], 
+    list(get_location_names_with_ids(["Mike Tyson Decision"]).values())[0]
 ]
 
 logger = logging.getLogger("Client")
@@ -296,7 +296,6 @@ class MTPOClient(BizHawkClient):
         if add_ko:
             tiger_ko_con = ctx.slot_data["tiger_ko"]
             bull_ko_con = ctx.slot_data["bull_ko"]
-
 
         reads = await read(ctx.bizhawk_ctx, [
             (CURRENT_MATCH, 1, "RAM"),
@@ -604,7 +603,7 @@ class MTPOClient(BizHawkClient):
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
                 if goal <= 1:
-                    if location_id == macho_goals[goal] and not ctx.finished_game:
+                    if location_id == goal_ids[goal] and not ctx.finished_game:
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
                         ctx.finished_game = True
 
@@ -627,8 +626,8 @@ class MTPOClient(BizHawkClient):
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
-                if goal <= 1:
-                    if location_id == tyson_goals[goal] and not ctx.finished_game:
+                if goal >= 1:
+                    if location_id == goal_ids[goal] and not ctx.finished_game:
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
                         ctx.finished_game = True
 
@@ -726,6 +725,7 @@ class MTPOClient(BizHawkClient):
                         (CURRENT_OPPONENT_2, bytes([MACHO[1]]), "RAM")
                     ])
         if not self.stars_unlocked:
+            self.star_can_send = False
             writes.extend([
                 (INIT_STAR, bytes([0]), "RAM"),
                 (STARS_INC, bytes([0]), "RAM"),
@@ -791,14 +791,15 @@ class MTPOClient(BizHawkClient):
                 )
 
 
-        # Check for match changing. Could be updated to include losses.
-        # TODO: Includes losses and round changes as well.
+        # Check for match/round/loss changing.
         if self.previous_match is None:
             self.previous_match = match
             self.match_changed = False
         elif match > self.previous_match:
             if match != 19 and self.previous_match != 19:
                 self.match_changed = True
+            else:
+                self.match_changed = False
         self.previous_match = match
 
         if self.previous_round is None:
@@ -807,6 +808,8 @@ class MTPOClient(BizHawkClient):
         elif round > self.previous_round:
             if round != 4 and self.previous_match != 3 and round != 0 and match != 19:
                 self.round_changed = True
+            else:
+                self.round_changed = False
         self.previous_round = round
 
         if self.previous_losses is None:
@@ -815,15 +818,11 @@ class MTPOClient(BizHawkClient):
         elif losing != self.previous_losses:
             if losing != 0:
                 self.losses_changed = True
+            else:
+                self.losses_changed = False
         self.previous_losses = losing
-
+        
         if self.stars_unlocked and self.stars_pending > 0: 
-            # logger.info(
-            #     f"""
-            #     {self.match_changed}, match={match}, prev={self.previous_match}
-            #     {self.round_changed}, round={round}, prev={self.previous_round}
-            #     {self.losses_changed}, losses={losing}, prev={self.previous_losses}"""
-            # )
             if self.match_changed or self.round_changed or self.losses_changed:
                 self.star_can_send = True
             else:
@@ -858,6 +857,7 @@ class MTPOClient(BizHawkClient):
                 logger.info(f"{stars_sending} star(s) sent!")
         else:
             self.star_queue_logged = False
+        
 
         # logger.info(
         #     f"received: {self.end_round_trap_received}, pending={self.end_round_trap_pending}, "
@@ -893,10 +893,7 @@ class MTPOClient(BizHawkClient):
                 self.previous_losses = None
                 logger.info("Round End Trap sent.")
         else:
-            self.trap_queue_logged = False
-            
-        
-            
+            self.trap_queue_logged = False  
         
         # Check Unlocks
         self.check_unlocks(ctx)

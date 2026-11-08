@@ -68,7 +68,7 @@ def set_all_entrance_rules(world: MTPOWorld) -> None:
     world.set_rule(tiger_to_bull, have_bull_1)
     world.set_rule(bull_to_honda_2, have_honda_2)
     world.set_rule(honda_2_to_soda, have_soda)
-    world.set_rule(soda_to_bull_2, have_bull_2) # & (have_stars | can_decision)
+    world.set_rule(soda_to_bull_2, have_bull_2 & (have_stars | can_decision)) 
     world.set_rule(bull_2_to_don_2, have_don_2)
     world.set_rule(don_2_to_sandman, have_sandman)
     world.set_rule(sandman_to_macho, have_macho)
@@ -164,9 +164,9 @@ def set_all_location_rules(world: MTPOWorld) -> None:
         else:
             world.set_rule(tiger_ko, have_tiger & have_round_2)
         if bull_ko_con > 4:
-            world.set_rule(tiger_ko, have_bull_1 & can_decision)
+            world.set_rule(bull_ko, have_bull_1 & can_decision)
         else:
-            world.set_rule(tiger_ko, have_bull_1 & have_round_2)
+            world.set_rule(bull_ko, have_bull_1 & have_round_2)
             
 
 
