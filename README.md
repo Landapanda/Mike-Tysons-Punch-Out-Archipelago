@@ -1,5 +1,7 @@
 # Mike Tyson's Punch-Out!! Archipelago Randomizer
 An Archipelago Randomizer for Mike Tyson's Punch-Out!! on NES.
+- [Download](https://github.com/Landapanda/Mike-Tysons-Punch-Out-Archipelago/releases/latest)
+- [Setup Guide](https://github.com/Landapanda/Mike-Tysons-Punch-Out-Archipelago/blob/main/setup.md)
 
 ## Checks
 - TKOs: TKO all fighters by knocking them down 3 times in a single round.

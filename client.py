@@ -648,7 +648,7 @@ class MTPOClient(BizHawkClient):
                             location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 else:
                     if goal == 0:
-                        if tko_logic or ko_logic:
+                        if tko_logic or ko_logic or (decision_on and add_decision and decision_logic_maker(macho_req)):
                             location_name = "Defeat Super Macho Man"
                             location_id = list(get_location_names_with_ids([location_name]).values())[0]
                     elif goal == 1:
