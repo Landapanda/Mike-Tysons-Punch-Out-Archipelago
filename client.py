@@ -671,7 +671,7 @@ class MTPOClient(BizHawkClient):
             location_name = None
             if opponent_1 == TYSON[0] and opponent_2 == TYSON[1]:
                 if goal == 3:
-                    if tko_logic or ko_logic or (decision_on and decision_logic_maker(TYSON)):
+                    if tko_logic or ko_logic or (decision_logic_maker(TYSON)):
                         location_name = "Defeat Mike Tyson"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 elif goal == 4:
