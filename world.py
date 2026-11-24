@@ -36,8 +36,13 @@ class MTPOWorld(World):
             "decision": self.options.decision.value,
             "force_ko": self.options.force_ko.value,
             "add_ko": self.options.add_ko.value,
+            "add_decision": self.options.add_decision.value,
             "trap-chance": self.options.trap_chance.value,
             "tiger_ko": self.options.tiger_ko.value,
-            "bull_ko": self.options.bull_ko.value
+            "bull_ko": self.options.bull_ko.value,
+            "honda_decision": self.options.honda_decision.value,
+            "bull_decision": self.options.bull_decision.value,
+            "sandman_decision": self.options.sandman_decision.value,
+            "macho_decision": self.options.macho_decision.value
         }
     

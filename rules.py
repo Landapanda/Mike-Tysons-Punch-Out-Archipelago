@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, HasAll, Rule
 
-from .options import Goal
-
 if TYPE_CHECKING:
     from .world import MTPOWorld
 
@@ -96,10 +94,24 @@ def set_all_location_rules(world: MTPOWorld) -> None:
     have_stars: Rule = Has("Star Punch Unlock")
     have_heal: Rule = Has("Heal in Between Rounds")
 
+    goal = world.options.goal.value
     decision_on: bool = world.options.decision.value
     add_ko: bool = world.options.add_ko.value
     tiger_ko_con = world.options.tiger_ko.value
     bull_ko_con = world.options.bull_ko.value
+    add_decision: bool = world.options.add_decision.value
+    honda_req = world.options.honda_decision.value
+    hippo_req = 1
+    bull_req = world.options.bull_decision.value
+    sandman_req = world.options.sandman_decision.value
+    macho_req = world.options.macho_decision.value
+
+    def check_decision_score(char, rule, req):
+        if req > 6:
+            world.set_rule(char, rule & can_decision & have_stars)
+        else:
+            world.set_rule(char, rule & can_decision)
+
 
     kaiser_tko = world.get_location("TKO Von Kaiser")
     world.set_rule(kaiser_tko, have_kaiser)
@@ -156,6 +168,16 @@ def set_all_location_rules(world: MTPOWorld) -> None:
         world.set_rule(bull_2_decision, have_bull_2 & can_decision & have_stars)
         don_2_decision = world.get_location("Don Flamenco 2 Decision")
         world.set_rule(don_2_decision, have_don_2 & can_decision)
+        if add_decision:
+            honda_1_decision = world.get_location("Piston Honda Decision")
+            check_decision_score(honda_1_decision, have_honda_1, honda_req)
+            bull_1_decision = world.get_location("Bald Bull Decision")
+            check_decision_score(bull_1_decision, have_bull_1, bull_req)
+            sandman_decision = world.get_location("Mr. Sandman Decision")
+            check_decision_score(sandman_decision, have_sandman, sandman_req)
+
+
+
     if add_ko:
         tiger_ko = world.get_location("KO Great Tiger")
         bull_ko = world.get_location("KO Bald Bull")
@@ -170,22 +192,23 @@ def set_all_location_rules(world: MTPOWorld) -> None:
             
 
 
-    goal = world.options.goal.value
-
     if goal == 0:
         macho_defeat = world.get_location("Defeat Super Macho Man")
         world.set_rule(macho_defeat, have_macho)
+    elif (add_decision or goal == 2) or (add_decision and goal not in [0, 1]):
+            macho_decision = world.get_location("Super Macho Man Decision")
+            check_decision_score(macho_decision, have_macho, macho_req)
     elif goal == 1:
         macho_ko = world.get_location("KO Super Macho Man")
         world.set_rule(macho_ko, have_macho & have_round_2)
-    elif goal == 2:
+    elif goal == 3:
         macho_tko = world.get_location("TKO Super Macho Man")
         world.set_rule(macho_tko, have_macho)
         macho_ko = world.get_location("KO Super Macho Man")
         world.set_rule(macho_ko, have_macho & have_round_2)
         tyson_defeat = world.get_location("Defeat Mike Tyson")
         world.set_rule(tyson_defeat, have_tyson)
-    elif goal == 3:
+    elif goal == 4:
         macho_tko = world.get_location("TKO Super Macho Man")
         world.set_rule(macho_tko, have_macho)
         macho_ko = world.get_location("KO Super Macho Man")
@@ -202,7 +225,7 @@ def set_all_location_rules(world: MTPOWorld) -> None:
 
 
 def set_completion_condition(world: MTPOWorld) -> None:
-    if world.options.goal.value > 1:
+    if world.options.goal.value > 2:
         world.set_completion_rule(Has("Mike Tyson"))
     else:
         world.set_completion_rule(Has("Super Macho Man"))

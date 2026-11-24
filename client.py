@@ -3,11 +3,10 @@ from typing import TYPE_CHECKING
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 import logging
-from .locations import LOCATION_NAME_TO_ID, get_location_names_with_ids
-from . import options, world
+from .locations import get_location_names_with_ids
 
 if TYPE_CHECKING:
-    from worlds._bizhawk.context import BizHawkClientContext
+    from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
 
 # RAM
 CURRENT_MATCH = 0x001
@@ -121,6 +120,7 @@ DEMO = (3, 0, None)
 goal_ids = [
     list(get_location_names_with_ids(["Defeat Super Macho Man"]).values())[0], 
     list(get_location_names_with_ids(["KO Super Macho Man"]).values())[0],
+    list(get_location_names_with_ids(["Super Macho Man Decision"]))[0],
     list(get_location_names_with_ids(["Defeat Mike Tyson"]).values())[0], 
     list(get_location_names_with_ids(["KO Mike Tyson"]).values())[0], 
     list(get_location_names_with_ids(["Mike Tyson Decision"]).values())[0]
@@ -147,6 +147,8 @@ class MTPOClient(BizHawkClient):
     has_sandman: bool = False
     has_macho: bool = False
     has_tyson: bool = False
+
+    # fighters_unlocked: list = [0]
 
     stars_unlocked: bool = False
     rounds_unlocked: int = 1
@@ -296,6 +298,13 @@ class MTPOClient(BizHawkClient):
         if add_ko:
             tiger_ko_con = ctx.slot_data["tiger_ko"]
             bull_ko_con = ctx.slot_data["bull_ko"]
+        add_decision: bool = ctx.slot_data["add_decision"]
+        if decision_on and add_decision:
+            honda_req = ctx.slot_data["honda_decision"]
+            bull_req = ctx.slot_data["bull_decision"]
+            sandman_req = ctx.slot_data["sandman_decision"]
+        if (add_decision or goal == 2) or (add_decision and goal not in [0, 1]):
+            macho_req = ctx.slot_data["macho_decision"] 
 
         reads = await read(ctx.bizhawk_ctx, [
             (CURRENT_MATCH, 1, "RAM"),
@@ -327,7 +336,10 @@ class MTPOClient(BizHawkClient):
         ko_logic = (knockdown == OPPONENT_KNOCKED_DOWN) and (down_count == KO)
 
         def decision_logic_maker(fighter):
-            score_req = fighter[2]
+            if fighter is not list:
+                score_req = fighter
+            else:
+                score_req = fighter[2]
             if score_req == 10:
                 scoring = score_ten_thousand
                 score_req = 1
@@ -336,12 +348,17 @@ class MTPOClient(BizHawkClient):
             decision_logic = (round == DECISION) and (scoring >= score_req)
             return decision_logic
 
-        # logger.info(
-        # f"Match={match}, Opponent1={opponent_1}, "
-        # f"Opponent2={opponent_2}, "
-        # f"Knockdown={knockdown}, KDCount={opponent_knockdown_count},"
-        # f"Count={down_count}, Fight={fight_status},"
-        # )
+        def add_decision_maker(rom, req):
+            if req == 10:
+                writes.append(
+                    (rom[2], bytes([req]), "PRG ROM")
+                )
+            else:
+                writes.extend([
+                    (rom[2], bytes([0]), "PRG ROM"),
+                    (rom[3], bytes([req]), "PRG ROM")
+                ])
+
 
         if force_ko:
             for i in sandman_kd6:
@@ -390,7 +407,29 @@ class MTPOClient(BizHawkClient):
                     writes.append(
                         (i, bytes([0]), "PRG ROM")
                     )
-
+        # Add Decision
+        if decision_on and add_decision:
+            honda_decision_rom = [0x0BB60, 0x0BB61, 0x0BB62, 0x0BB63] # (1000k?, 100k, 10k, 1k)
+            bull_decision_rom = [0x078FF, 0x07900, 0x07901, 0x07902]
+            sandman_decision_rom = [0x07D1D, 0x07D1E, 0x07D1F, 0x07D20]
+            writes.extend([
+                (honda_decision_rom[0], bytes([0]), "PRG ROM"),
+                (honda_decision_rom[1], bytes([0]), "PRG ROM"),
+                (bull_decision_rom[0], bytes([0]), "PRG ROM"),
+                (bull_decision_rom[1], bytes([0]), "PRG ROM"),
+                (sandman_decision_rom[0], bytes([0]), "PRG ROM"),
+                (sandman_decision_rom[1], bytes([0]), "PRG ROM"),
+            ])
+            add_decision_maker(honda_decision_rom, honda_req)
+            add_decision_maker(bull_decision_rom, bull_req)
+            add_decision_maker(sandman_decision_rom, sandman_req)
+        if (add_decision or goal == 2) or (add_decision and goal not in [0, 1]):
+            macho_decision_rom = [0x098A0, 0x098A1, 0x098A2, 0x098A3] 
+            writes.extend([
+                (macho_decision_rom[0], bytes([0]), "PRG ROM"),
+                (macho_decision_rom[1], bytes([0]), "PRG ROM"),
+            ])
+            add_decision_maker(macho_decision_rom, macho_req)
         # Location Checks
         if fight_status == IN_FIGHT:
             #Glass Joe
@@ -437,6 +476,10 @@ class MTPOClient(BizHawkClient):
                 elif ko_logic:
                     location_name = "KO Piston Honda"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on and add_decision:
+                    if decision_logic_maker(honda_req):
+                        location_name = "Piston Honda Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
 
@@ -495,6 +538,10 @@ class MTPOClient(BizHawkClient):
                 if add_ko:
                     if ko_logic:
                         location_name = "KO Bald Bull"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on and add_decision:
+                    if decision_logic_maker(bull_req):
+                        location_name = "Bald Bull Decision"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}])
@@ -577,20 +624,28 @@ class MTPOClient(BizHawkClient):
                 elif ko_logic:
                     location_name = "KO Mr. Sandman"
                     location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                if decision_on and add_decision:
+                    if decision_logic_maker(sandman_req):
+                        location_name = "Mr. Sandman Decision"
+                        location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
-
+            
             #Super Macho Man
             location_id = None
             location_name = None
             if opponent_1 == MACHO[0] and opponent_2 == MACHO[1]:
-                if goal > 1:
+                if goal > 2:
                     if tko_logic:
                         location_name = "TKO Super Macho Man"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                     elif ko_logic:
                         location_name = "KO Super Macho Man"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    if decision_on and add_decision:
+                        if decision_logic_maker(macho_req):
+                            location_name = "Super Macho Man Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 else:
                     if goal == 0:
                         if tko_logic or ko_logic:
@@ -600,39 +655,66 @@ class MTPOClient(BizHawkClient):
                         if ko_logic:
                             location_name = "KO Super Macho Man"
                             location_id = list(get_location_names_with_ids([location_name]).values())[0]
+                    elif goal == 2:
+                        if decision_logic_maker(macho_req):
+                            location_name = "Super Macho Man Decision"
+                            location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
-                if goal <= 1:
+                if goal <= 2:
                     if location_id == goal_ids[goal] and not ctx.finished_game:
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
                         ctx.finished_game = True
-
 
             #Mike Tyson
             location_id = None
             location_name = None
             if opponent_1 == TYSON[0] and opponent_2 == TYSON[1]:
-                if goal == 2:
+                if goal == 3:
                     if tko_logic or ko_logic:
                         location_name = "Defeat Mike Tyson"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif goal == 3:
+                elif goal == 4:
                     if ko_logic:
                         location_name = "KO Mike Tyson"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
-                elif goal == 4:
+                elif goal == 5:
                     if decision_logic_maker(TYSON):
                         location_name = "Mike Tyson Decision"
                         location_id = list(get_location_names_with_ids([location_name]).values())[0]
                 if location_id is not None and location_id not in ctx.checked_locations:
                     await ctx.send_msgs([{"cmd": "LocationChecks", "locations": [location_id]}]) 
-                if goal >= 1:
-                    if location_id == goal_ids[goal] and not ctx.finished_game:
+                    if not ctx.finished_game:
                         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
                         ctx.finished_game = True
 
         # Item Checks
         if not match == 19: # Hopefully prevents visual glitch on the Bull DEMO fight that can sometimes freeze the game.
+            # ALT METHOD to allow skipping ahead by skipping to next fight rather than locking linearlly.
+            #   Can't figure out right now saving for next update.
+            # if match > max(self.fighters_unlocked):
+            #     proper_match = max(self.fighters_unlocked)
+            #     if proper_match in self.fighters_unlocked:
+            #         writes.append(
+            #             (CURRENT_MATCH, bytes([proper_match]), "RAM")
+            #         )
+            #     logger.info(f"Set fight to {proper_match}")
+            #     logger.info(sorted(self.fighters_unlocked))
+            # elif match not in self.fighters_unlocked:
+            #     fighters = sorted(self.fighters_unlocked)
+            #     proper_match = match+1
+            #     logger.info(f"NOT IN LIST: {proper_match}")
+            #     while proper_match not in self.fighters_unlocked:
+            #         proper_match = match+1
+            #         logger.info(f"NOT IN LIST: {proper_match}")
+            #     else:
+            #         writes.append(
+            #             (CURRENT_MATCH, bytes([proper_match]), "RAM")
+            #         )
+                # if proper_match in self.fighters_unlocked:
+                #     writes.append(
+                #         (CURRENT_MATCH, bytes([proper_match]), "RAM")
+                #     )
             if not self.has_kaiser:
                 if match >= 1:
                     writes.extend([
@@ -790,7 +872,6 @@ class MTPOClient(BizHawkClient):
                     (credits_rom[i], bytes([credits_code[i]]), "PRG ROM")
                 )
 
-
         # Check for match/round/loss changing.
         if self.previous_match is None:
             self.previous_match = match
@@ -803,13 +884,14 @@ class MTPOClient(BizHawkClient):
         self.previous_match = match
 
         if self.previous_round is None:
-            self.previous_match = round
+            self.previous_round = round
             self.round_changed = False
         elif round > self.previous_round:
-            if round != 4 and self.previous_match != 3 and round != 0 and match != 19:
-                self.round_changed = True
-            else:
+            if (self.previous_round == 3 and round == 4) or match == 19 or round == 0:
                 self.round_changed = False
+            elif round != 4 and self.previous_round != 3 and round != 0 and match != 19:
+                self.round_changed = True
+
         self.previous_round = round
 
         if self.previous_losses is None:
@@ -821,6 +903,12 @@ class MTPOClient(BizHawkClient):
             else:
                 self.losses_changed = False
         self.previous_losses = losing
+
+        if not self.end_round_trap_pending >= 1:
+            if not self.stars_unlocked or not self.stars_pending >= 1:
+                self.previous_match = None
+                self.previous_round = None
+                self.previous_losses = None
         
         if self.stars_unlocked and self.stars_pending > 0: 
             if self.match_changed or self.round_changed or self.losses_changed:
@@ -831,7 +919,6 @@ class MTPOClient(BizHawkClient):
             if not self.star_queue_logged:
                 logger.info(f"{self.stars_pending} Star(s) queued for next fight!")
                 self.star_queue_logged = True
-            # logger.info(f"can_send={self.star_can_send}, fight_status={fight_status}")
             if self.star_can_send and fight_status == IN_FIGHT:
                 star_add = [
                     (STARS_HELD, bytes([stars + stars_sending]), "RAM"),
@@ -850,20 +937,10 @@ class MTPOClient(BizHawkClient):
                 self.previous_match = None
                 self.previous_round = None
                 self.previous_losses = None
-                # logger.info(
-                # f"{self.previous_match}, {match}\ncan_send={self.star_can_send}\n"
-                # f"stars: {self.stars_pending}, data:{ctx.stored_data.get("stars", 0)}"
-                # )
                 logger.info(f"{stars_sending} star(s) sent!")
         else:
             self.star_queue_logged = False
-        
-
-        # logger.info(
-        #     f"received: {self.end_round_trap_received}, pending={self.end_round_trap_pending}, "
-        #     f"end_rounds={ctx.stored_data.get("end_rounds", 0)}, can_send={self.trap_can_send}, "
-        #     f"log={self.trap_queue_logged}"
-        #     )
+       
         if self.end_round_trap_pending > 0:
             if self.match_changed or self.round_changed or self.losses_changed:
                 self.trap_can_send = True
@@ -893,14 +970,14 @@ class MTPOClient(BizHawkClient):
                 self.previous_losses = None
                 logger.info("Round End Trap sent.")
         else:
-            self.trap_queue_logged = False  
+            self.trap_queue_logged = False
         
         # Check Unlocks
         self.check_unlocks(ctx)
         if self.items < len(ctx.items_received):
             item = ctx.items_received[self.items]
             item_name = ctx.item_names.lookup_in_game(item.item)
-
+         
             if item_name is not None:
                 self.items += 1
 

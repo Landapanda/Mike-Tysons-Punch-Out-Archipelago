@@ -50,7 +50,7 @@ def connect_regions(world: MTPOWorld) -> None:
     don_2 = world.get_region("Don2")
     sandman = world.get_region("Sandman")
     macho = world.get_region("Macho")
-    if world.options.goal.value > 1:
+    if world.options.goal.value > 2:
         tyson = world.get_region("Tyson")
 
     joe_to_kaiser = Entrance(world.player, "Glass Joe to Von Kaiser", parent=joe)
@@ -89,7 +89,7 @@ def connect_regions(world: MTPOWorld) -> None:
     sandman_to_macho = Entrance(world.player, "Mr. Sandman to Super Macho Man", parent=sandman)
     sandman.exits.append(sandman_to_macho)
 
-    if world.options.goal.value > 1:
+    if world.options.goal.value > 2:
         macho_to_tyson = Entrance(world.player, "Super Macho Man to Mike Tyson", parent=macho)
         macho.exits.append(macho_to_tyson)
 

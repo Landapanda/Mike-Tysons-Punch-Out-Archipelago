@@ -100,7 +100,6 @@ def create_all_items(world: MTPOWorld) -> None:
         world.create_item("Don Flamenco 2"),
         world.create_item("Mr. Sandman"),
         world.create_item("Super Macho Man"),
-        world.create_item("Mike Tyson"),
         world.create_item("Star Punch Unlock"),
         world.create_item("Progressive Round"),
         world.create_item("Progressive Round"),
@@ -109,6 +108,9 @@ def create_all_items(world: MTPOWorld) -> None:
         world.create_item("Busy Signal Code 3"),
         world.create_item("Credits Code")
     ]
+
+    if world.options.goal.value > 2:
+        itempool.append(world.create_item("Mike Tyson"))
 
     starting_fighter = world.create_item("Glass Joe")
     world.push_precollected(starting_fighter)
