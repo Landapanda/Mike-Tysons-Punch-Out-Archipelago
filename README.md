@@ -18,6 +18,7 @@ An Archipelago Randomizer for Mike Tyson's Punch-Out!! on NES.
 ## Goals
 - Defeat Super Macho Man: For those who aren't quite able to beat Mike Tyson. Defeat him by TKO or KO.
 - KO Super Macho Man: Defeat Super Macho Man by KO.
+- Super Macho Man Decision: Defeat Super Macho Man by decision and select the score requirement.
 - Defeat Mike Tyson: Defeat the final boss of the game Mike Tyson via TKO, KO, or Decision.
 - KO Mike Tyson: Go for the extra challenge and make Tyson stay down for the 10-count.
 - Mike Tyson Decision: Survive all three rounds and beat Mike Tyson via decision.
@@ -27,6 +28,7 @@ An Archipelago Randomizer for Mike Tyson's Punch-Out!! on NES.
 - Decision Checks: Enable checks for decision wins.
 - Force KO: Makes the RNG KO for Mr. Sandman a guaranteed KO. (Could be added to other fights but Sandman is the only complete RNG one.)
 - Add KOs: Add KOs to Great Tiger and Bald Bull 1, select how many knockdowns to trigger their KOs.
+- Add Decisions: Add decisions to Piston Honda 1, Bald Bull 1, Mr. Sandman, and Super Macho Man. 
 - Trap Chance: Choose the percent of Filler items that become Traps.
 
 ## Notes
