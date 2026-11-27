@@ -148,7 +148,7 @@ class MTPOClient(BizHawkClient):
     has_macho: bool = False
     has_tyson: bool = False
 
-    # fighters_unlocked: list = [0]
+    fighters_unlocked: list = [0]
 
     stars_unlocked: bool = False
     rounds_unlocked: int = 1
@@ -209,6 +209,7 @@ class MTPOClient(BizHawkClient):
 
 
     def check_unlocks(self, ctx: "BizHawkClientContext") -> None:
+        self.fighters_unlocked = [0]
         self.has_kaiser = False
         self.has_honda_1 = False
         self.has_don_1 = False
@@ -240,30 +241,43 @@ class MTPOClient(BizHawkClient):
             name = ctx.item_names.lookup_in_game(item.item)
             if name == "Von Kaiser":
                 self.has_kaiser = True
+                self.fighters_unlocked.append(1)
             if name == "Piston Honda":
                 self.has_honda_1 = True
+                self.fighters_unlocked.append(2)
             if name == "Don Flamenco":
                 self.has_don_1 = True
+                self.fighters_unlocked.append(3)
             if name == "King Hippo":
                 self.has_hippo = True
+                self.fighters_unlocked.append(4)
             if name == "Great Tiger":
                 self.has_tiger = True
+                self.fighters_unlocked.append(5)
             if name == "Bald Bull":
                 self.has_bull_1 = True
+                self.fighters_unlocked.append(6)
             if name == "Piston Honda 2":
                 self.has_honda_2 = True
+                self.fighters_unlocked.append(7)
             if name == "Soda Popinski":
                 self.has_soda = True
+                self.fighters_unlocked.append(8)
             if name == "Bald Bull 2":
                 self.has_bull_2 = True
+                self.fighters_unlocked.append(9)
             if name == "Don Flamenco 2":
                 self.has_don_2 = True
+                self.fighters_unlocked.append(10)
             if name == "Mr. Sandman":
                 self.has_sandman = True
+                self.fighters_unlocked.append(11)
             if name == "Super Macho Man":
                 self.has_macho = True
+                self.fighters_unlocked.append(12)
             if name == "Mike Tyson":
                 self.has_tyson = True
+                self.fighters_unlocked.append(13)
             if name == "Star Punch Unlock":
                 self.stars_unlocked = True
             if name == "Progressive Round":
@@ -691,121 +705,51 @@ class MTPOClient(BizHawkClient):
         # Item Checks
         if not match == 19: # Hopefully prevents visual glitch on the Bull DEMO fight that can sometimes freeze the game.
             # ALT METHOD to allow skipping ahead by skipping to next fight rather than locking linearlly.
-            #   Can't figure out right now saving for next update.
-            # if match > max(self.fighters_unlocked):
-            #     proper_match = max(self.fighters_unlocked)
-            #     if proper_match in self.fighters_unlocked:
-            #         writes.append(
-            #             (CURRENT_MATCH, bytes([proper_match]), "RAM")
-            #         )
-            #     logger.info(f"Set fight to {proper_match}")
-            #     logger.info(sorted(self.fighters_unlocked))
-            # elif match not in self.fighters_unlocked:
-            #     fighters = sorted(self.fighters_unlocked)
-            #     proper_match = match+1
-            #     logger.info(f"NOT IN LIST: {proper_match}")
-            #     while proper_match not in self.fighters_unlocked:
-            #         proper_match = match+1
-            #         logger.info(f"NOT IN LIST: {proper_match}")
-            #     else:
-            #         writes.append(
-            #             (CURRENT_MATCH, bytes([proper_match]), "RAM")
-            #         )
-                # if proper_match in self.fighters_unlocked:
-                #     writes.append(
-                #         (CURRENT_MATCH, bytes([proper_match]), "RAM")
-                #     )
-            if not self.has_kaiser:
-                if match >= 1:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([0]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([JOE[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([JOE[1]]), "RAM")
-                    ])
-            elif not self.has_honda_1:
-                if match >= 2:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([1]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([KAISER[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([KAISER[1]]), "RAM")
-                    ])
-            elif not self.has_don_1:
-                if match >= 3:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([2]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([HONDA_1[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([HONDA_1[1]]), "RAM")
-                    ])
-            elif not self.has_hippo:
-                if match >= 4:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([3]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([DON_1[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([DON_1[1]]), "RAM")
-                    ])
-            elif not self.has_tiger:
-                if match >= 5:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([4]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([HIPPO[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([HIPPO[1]]), "RAM")
-                    ])
-            elif not self.has_bull_1:
-                if match >=6:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([5]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
-                    ])
-            elif not self.has_honda_2:
-                if match >= 7:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([6]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([TIGER[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([TIGER[1]]), "RAM")
-                    ])
-            elif not self.has_soda:
-                if match >= 8:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([7]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([HONDA_2[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([HONDA_2[1]]), "RAM")
-                    ])
-            elif not self.has_bull_2:
-                if match >= 9:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([8]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([SODA[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([SODA[1]]), "RAM")
-                    ])
-            elif not self.has_don_2:
-                if match >= 10:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([9]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([BULL_2[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([BULL_2[1]]), "RAM")
-                    ])
-            if not self.has_sandman:
-                if match >= 11:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([10]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([DON_2[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([DON_2[1]]), "RAM")
-                    ])
-            elif not self.has_macho:
-                if match >= 12:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([11]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([SANDMAN[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([SANDMAN[1]]), "RAM")
-                    ])
-            elif not self.has_tyson:
-                if match >= 13:
-                    writes.extend([
-                        (CURRENT_MATCH, bytes([12]), "RAM"),
-                        (CURRENT_OPPONENT_1, bytes([MACHO[0]]), "RAM"), 
-                        (CURRENT_OPPONENT_2, bytes([MACHO[1]]), "RAM")
-                    ])
+            #   I think it works? Will test it more.
+            if match > max(self.fighters_unlocked):
+                proper_match = max(self.fighters_unlocked)
+                if proper_match in self.fighters_unlocked:
+                    writes.append(
+                        (CURRENT_MATCH, bytes([proper_match]), "RAM")
+                    )
+                logger.info(f"Set fight to {proper_match}")
+            if match not in self.fighters_unlocked:
+                fighters = sorted(self.fighters_unlocked)
+                logger.info(fighters)
+                proper_match = 0
+                for i in fighters:
+                    if proper_match not in self.fighters_unlocked or proper_match < match+1:
+                        logger.info(f"NOT IN LIST: {proper_match}")
+                        proper_match = i
+                if proper_match > 0:
+                    writes.append(
+                        (CURRENT_MATCH, bytes([proper_match]), "RAM")
+                    )
+                    logger.info(f"Set fight to next: {proper_match}")
+
+            # Show their names in the name list on title screen if unlocked. Could be neat.
+            #
+            # if not self.has_kaiser:
+            #     
+            # elif not self.has_honda_1 or not self.has_honda_2:
+            #    
+            # elif not self.has_don_1 or not self.has_don_1:
+            #   
+            # elif not self.has_hippo:
+            #    
+            # elif not self.has_tiger:
+            #     
+            # elif not self.has_bull_1 or not self.has_bull_2:
+            #     
+            # elif not self.has_soda:
+            #     
+            # if not self.has_sandman:
+            #    
+            # elif not self.has_macho:
+            #     
+            # elif not self.has_tyson:
+            #     
+        # ADD PROGRESSIVE STAR COUNT INCREASE AT SOME POINT PLS
         if not self.stars_unlocked:
             self.star_can_send = False
             writes.extend([
@@ -816,15 +760,19 @@ class MTPOClient(BizHawkClient):
 
         if self.rounds_unlocked == 1 and round == 1 and timer_minute == 3 and fight_status == IN_FIGHT:
             writes.extend([
-                (CURRENT_ROUND, bytes([3]), "RAM"),
                 (SCORE_10000, bytes([0]), "RAM"),
-                (SCORE_1000, bytes([0]), "RAM")
+                (SCORE_1000, bytes([0]), "RAM"),
+                (SCORE_1000+1, bytes([0]), "RAM"), # These two will make it become 0 to prevent decisions happening anyway.
+                (SCORE_1000+2, bytes([0]), "RAM"),
+                (CURRENT_ROUND, bytes([3]), "RAM"),
             ])
         if self.rounds_unlocked == 2 and round == 2 and timer_minute == 3 and fight_status == IN_FIGHT:
             writes.extend([
-                (CURRENT_ROUND, bytes([3]), "RAM"),
                 (SCORE_10000, bytes([0]), "RAM"),
-                (SCORE_1000, bytes([0]), "RAM")
+                (SCORE_1000, bytes([0]), "RAM"),
+                (SCORE_1000+1, bytes([0]), "RAM"),
+                (SCORE_1000+2, bytes([0]), "RAM"),
+                (CURRENT_ROUND, bytes([3]), "RAM"),
             ])
         if not self.heal_unlocked:
             writes.append(
